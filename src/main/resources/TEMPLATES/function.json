@@ -1,0 +1,16 @@
+{
+  "bindings" : [
+    {
+      "type" : "httpTrigger",
+      "direction" : "in",
+      "name" : "req",
+      "route" : "__ENDPOINT_ROUTE__",
+      "methods" : [ "__ENDPOINT_REST_METHOD__" ],
+      "authLevel" : "ANONYMOUS"
+    }, {
+      "type" : "http",
+      "direction" : "out",
+      "name" : "$return"
+    }
+  ]
+}
