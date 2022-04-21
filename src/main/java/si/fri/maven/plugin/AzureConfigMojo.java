@@ -44,6 +44,9 @@ public class AzureConfigMojo extends AbstractMojo {
     @Parameter(property = "configFolder", required = false, defaultValue = "azure-config-folder")
     private String outConfigFolder;
 
+    @Parameter(property = "extractAllJars", required = false, defaultValue = "false")
+    private boolean extractAllJars;
+
     private static final String TEMPLATES_FOLDER = "TEMPLATES";
     private static final String FUNCTIONS_FILE = "function.json";
     private static final String HOST_FILE = "host.json";
@@ -198,17 +201,26 @@ public class AzureConfigMojo extends AbstractMojo {
         Files.createDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME, "lib"));
         List<File> jarFiles = new ArrayList<>();
 
-        // extract all nested jars to tmp folder
+        // jars that may be surely ignored when extracting... any better way to extract only the sub-modules?
+        String[] ignoreJars = new String[]{"jetty", "jersey", "jackson", "snakeyaml", "openapi", "microprofile",
+                "kumuluzee", "http2", "org.eclipse.persistence", "h2k"};
         JarFile jar = new JarFile(jarFile);
-        jar.stream().forEach(jarEntry -> {
+
+        // extract all nested jars to tmp folder
+        jar.stream().parallel().forEach(jarEntry -> {
+            // check if file should be extracted...
             if (!jarEntry.getName().endsWith(".jar")) return;
+            if (!extractAllJars && Arrays.stream(ignoreJars).anyMatch(jarEntry.getName()::contains)){
+                getLog().info("Ignoring " + jarEntry.getName() + " when building azure function config.");
+                return;
+            }
 
             File targetJar = new File(
                     Paths.get(outputDirectory, TMP_FOLDER_NAME, jarEntry.getName()).toString());
 
             try {
                 InputStream is = jar.getInputStream(jarEntry);
-                FileOutputStream fos = new FileOutputStream(targetJar);
+                BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(targetJar));
 
                 // copy content
                 while (is.available() > 0)
@@ -224,10 +236,9 @@ public class AzureConfigMojo extends AbstractMojo {
 
         });
 
-        jarFiles.forEach(System.out::println);
         jarFiles.add(jarFile);
 
-        URL[] t = jarFiles.stream().map(entry -> {
+        URL[] jarFilesArray = jarFiles.stream().map(entry -> {
             try {
                 return entry.toURI().toURL();
             } catch (MalformedURLException e) {
@@ -237,7 +248,7 @@ public class AzureConfigMojo extends AbstractMojo {
         }).filter(e -> e != null).toArray(URL[]::new);
 
         return new URLClassLoader(
-                t,
+                jarFilesArray,
                 this.getClass().getClassLoader()
         );
     }
