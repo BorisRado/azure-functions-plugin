@@ -7,24 +7,21 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.FileUtils;
 import si.fri.maven.plugin.enums.ConfigTemplateMapping;
 import si.fri.maven.plugin.enums.RestMethodEnum;
 
 import javax.ws.rs.*;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.jar.JarFile;
 
 /*
@@ -52,6 +49,9 @@ public class AzureConfigMojo extends AbstractMojo {
     private static final String HOST_FILE = "host.json";
     private static final String LOCAL_SETTINGS_FILE = "local.settings.json";
 
+    private static final String TMP_FOLDER_NAME = "JAR_TMP";
+
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -63,6 +63,7 @@ public class AzureConfigMojo extends AbstractMojo {
         try {
             createConfigFiles(endpoints);
             copyJar();
+            clean();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -144,6 +145,10 @@ public class AzureConfigMojo extends AbstractMojo {
         return endpoints;
     }
 
+    private void clean() throws IOException {
+        FileUtils.deleteDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME).toFile());
+    }
+
     private List<Class> getClasses() {
         if (project.getPackaging().toLowerCase().equals("jar")) {
             String basePackage = String.format("%s.%s", project.getGroupId(), project.getArtifactId());
@@ -164,18 +169,8 @@ public class AzureConfigMojo extends AbstractMojo {
 
         try {
             File jarFile = new File(jarFileName);
-            URLClassLoader child = new URLClassLoader(
-                    new URL[] {jarFile.toURI().toURL()},
-                    this.getClass().getClassLoader()
-            );
+            URLClassLoader clsLoader = getClassLoader(jarFile);
             JarFile jar = new JarFile(jarFile);
-
-            /*List<String> jarFiles = new ArrayList<>();
-            jar.stream()
-                    .filter(e -> e.getName().endsWith(".jar"))
-                    .forEach(e -> jarFiles.add(e.getName()));
-            System.out.println("total " + jarFiles.size());
-            jarFiles.forEach(System.out::println);*/
 
             jar.stream()
                     .filter(e -> e.getName().endsWith(".class"))
@@ -184,7 +179,7 @@ public class AzureConfigMojo extends AbstractMojo {
                         try {
                             String className = entry.getName().replace("/", ".")
                                     .substring(0, entry.getName().length() - 6);
-                            Class classToLoad = Class.forName(className, true, child);
+                            Class classToLoad = Class.forName(className, true, clsLoader);
                             classes.add(classToLoad);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -194,6 +189,57 @@ public class AzureConfigMojo extends AbstractMojo {
             e.printStackTrace();
         }
         return classes;
+    }
+
+    private URLClassLoader getClassLoader(File jarFile) throws IOException {
+
+        // create folder containing all nested jars
+        Files.createDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME));
+        Files.createDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME, "lib"));
+        List<File> jarFiles = new ArrayList<>();
+
+        // extract all nested jars to tmp folder
+        JarFile jar = new JarFile(jarFile);
+        jar.stream().forEach(jarEntry -> {
+            if (!jarEntry.getName().endsWith(".jar")) return;
+
+            File targetJar = new File(
+                    Paths.get(outputDirectory, TMP_FOLDER_NAME, jarEntry.getName()).toString());
+
+            try {
+                InputStream is = jar.getInputStream(jarEntry);
+                FileOutputStream fos = new FileOutputStream(targetJar);
+
+                // copy content
+                while (is.available() > 0)
+                    fos.write(is.read());
+
+                fos.close();
+                is.close();
+
+                jarFiles.add(targetJar);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        });
+
+        jarFiles.forEach(System.out::println);
+        jarFiles.add(jarFile);
+
+        URL[] t = jarFiles.stream().map(entry -> {
+            try {
+                return entry.toURI().toURL();
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }).filter(e -> e != null).toArray(URL[]::new);
+
+        return new URLClassLoader(
+                t,
+                this.getClass().getClassLoader()
+        );
     }
 
     private RestEndpoint createEndpoint(RestMethodEnum restMethodEnum, Method method, Class clazz) {
