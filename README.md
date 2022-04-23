@@ -25,4 +25,6 @@ This will generate a folder (`azure-config-folder`) inside the `target` folder o
 You can change the name of the target folder by specifying `-DconfigFolder=<folder-name>`.
 
 ### So-far, to-do
-The plugin works for projects consisting of one single module. We'll probably have to switch to EeClassLoader so to support project with multiple modules.
+The plugin supports both JAR packaging and copy-dependency packaging. It supports multi-module projects as well.
+
+Next steps...?
