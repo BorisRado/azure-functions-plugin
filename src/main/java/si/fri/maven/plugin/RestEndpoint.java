@@ -61,7 +61,7 @@ public class RestEndpoint {
 
     @Override
     public String toString() {
-        return String.format("%s: %s %s", methodName, restMethodEnum.name(), getCompleteURL());
+        return String.format("%s (%s): %s %s", methodName, clazz.getName(), restMethodEnum.name(), getCompleteURL());
     }
 
     public String getFolderName() {
@@ -70,7 +70,7 @@ public class RestEndpoint {
 
     public String getCompleteURL() {
         String url = String.format("%s/%s/%s", baseUrl, this.classPath, this.methodPath);
-        if (url.charAt(0) == '/')
+        while (url.charAt(0) == '/')
             url = url.substring(1);
         url = url.replace("//", "/");
         return url;

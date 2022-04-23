@@ -1,5 +1,6 @@
 package si.fri.maven.plugin;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -22,12 +23,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 
-/*
- * Load classes from JAR: https://stackoverflow.com/questions/60764/how-to-load-jar-files-dynamically-at-runtime
- * should probably use the EeClassLoader, otherwise problems when using multiple modules (uber jar)... TO-DO
- */
 
 @Mojo(name = "generate-config-files", defaultPhase = LifecyclePhase.PACKAGE)
 public class AzureConfigMojo extends AbstractMojo {
@@ -36,7 +36,7 @@ public class AzureConfigMojo extends AbstractMojo {
     protected MavenProject project;
 
     @Parameter(defaultValue = "${project.build.directory}")
-    private String outputDirectory;
+    private String targetDirectory;
 
     @Parameter(defaultValue = "${project.build.finalName}")
     private String finalName;
@@ -50,48 +50,62 @@ public class AzureConfigMojo extends AbstractMojo {
     private static final String TEMPLATES_FOLDER = "TEMPLATES";
     private static final String FUNCTIONS_FILE = "function.json";
     private static final String HOST_FILE = "host.json";
+    private static final String HOST_FILE_EXPLODED = "host_exploded.json";
+    private static final String HOST_FILE_JAR = "host_jar.json";
     private static final String LOCAL_SETTINGS_FILE = "local.settings.json";
 
-    private static final String TMP_FOLDER_NAME = "JAR_TMP";
+    private static final String CLASSES_FOLDER = "classes";
+    private static final String DEPENDENCY_FOLDER = "dependency";
+
+    private static final String EE_CLS_LOADER_FOLDER = Paths.get("tmp", "EeClassLoader").toString();
+
+    private boolean jarPackaging; // true when jar, false when "copy-dependencies"
 
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-
-        List<Class> classes = getClasses();
-        List<RestEndpoint> endpoints = getEndpoints(classes);
-        getLog().info("Found " + endpoints.size() + " endpoints in total");
-        endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
-
+        jarPackaging = project.getBuildPlugins().stream().anyMatch(e -> e.toString().contains("kumuluzee-maven-plugin"));
         try {
+
+            createDirectoryStructure();
+            URL[] urls = setupBuildFiles();
+
+            List<Class> classes = getClasses(urls);
+            List<RestEndpoint> endpoints = getEndpoints(classes);
+            getLog().info("Found " + endpoints.size() + " endpoints in total");
+            endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
+
             createConfigFiles(endpoints);
-            copyJar();
             clean();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void createConfigFiles(List<RestEndpoint> endpoints) throws IOException {
-        // create container folder
-        java.nio.file.Path baseDirectory = Paths.get(outputDirectory, outConfigFolder);
-        getLog().info("Creating " + baseDirectory);
-        Files.createDirectories(baseDirectory);
+        java.nio.file.Path baseDirectory = Paths.get(targetDirectory, outConfigFolder);
 
-        for(RestEndpoint endpoint : endpoints) {
+        endpoints.stream().parallel().forEach(endpoint -> {
             // create folder
             java.nio.file.Path methodFolder = Paths.get(baseDirectory.toString(), endpoint.getFolderName());
-            Files.createDirectories(methodFolder);
+            try {
+                Files.createDirectories(methodFolder);
 
-            // create functions.json file
-            String config = getConfigTemplate(FUNCTIONS_FILE)
-                    .replace(ConfigTemplateMapping.ENDPOINT_ROUTE.toString(), endpoint.getCompleteURL())
-                    .replace(ConfigTemplateMapping.ENDPOINT_REST_METHOD.toString(), endpoint.getRestMethod().name());
-            writeConfigFile(config, methodFolder.toString(), FUNCTIONS_FILE);
-        }
+                // create functions.json file
+                String config = getConfigTemplate(FUNCTIONS_FILE)
+                        .replace(ConfigTemplateMapping.ENDPOINT_ROUTE.toString(), endpoint.getCompleteURL())
+                        .replace(ConfigTemplateMapping.ENDPOINT_REST_METHOD.toString(), endpoint.getRestMethod().name());
+                writeConfigFile(config, methodFolder.toString(), FUNCTIONS_FILE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        });
 
         // still copy host.json and local.settings.json
-        writeConfigFile(getConfigTemplate(HOST_FILE), baseDirectory.toString(), HOST_FILE);
+        String baseHostConfig = jarPackaging ? getConfigTemplate(HOST_FILE_JAR) : getConfigTemplate(HOST_FILE_EXPLODED);
+        writeConfigFile(baseHostConfig, baseDirectory.toString(), HOST_FILE);
         writeConfigFile(getConfigTemplate(LOCAL_SETTINGS_FILE), baseDirectory.toString(), LOCAL_SETTINGS_FILE);
     }
 
@@ -102,16 +116,16 @@ public class AzureConfigMojo extends AbstractMojo {
     }
 
     private static void writeConfigFile(String config, String folder, String fileName) {
-        try (PrintWriter out = new PrintWriter(Paths.get(folder, fileName).toString())) {
-            out.print(config);
-        } catch (FileNotFoundException e) {
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(Paths.get(folder, fileName).toFile()))) {
+            out.write(config);
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void copyJar() throws IOException {
-        java.nio.file.Path targetFile = Paths.get(outputDirectory, outConfigFolder, "handler.jar");
-        java.nio.file.Path sourceFile = Paths.get(outputDirectory, finalName + ".jar");
+        java.nio.file.Path targetFile = Paths.get(targetDirectory, outConfigFolder, "handler.jar");
+        java.nio.file.Path sourceFile = Paths.get(targetDirectory, finalName + ".jar");
         Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
     }
 
@@ -149,91 +163,141 @@ public class AzureConfigMojo extends AbstractMojo {
     }
 
     private void clean() throws IOException {
-        FileUtils.deleteDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME).toFile());
+        if (jarPackaging) {
+            File tmpFolder = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER).toFile();
+            for (File file: tmpFolder.listFiles())
+                if (file.getName().endsWith(".jar"))
+                    file.delete();
+        }
+
     }
 
-    private List<Class> getClasses() {
-        if (project.getPackaging().toLowerCase().equals("jar")) {
-            String basePackage = String.format("%s.%s", project.getGroupId(), project.getArtifactId());
-            String baseJar = String.format("%s/%s.jar", outputDirectory, finalName);
-            try {
-                return getClassesFromJar(baseJar, basePackage);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+    /**
+     * moves all the files reuired for the build process and for the kumuluzee start-up to the configuration folder,
+     * and returns an array of all the JARs, that may be required during the build process
+     * @return
+     * @throws IOException
+     */
+    private URL[] setupBuildFiles() throws IOException {
+        URL[] urls = null;
+        if (jarPackaging) {
+
+            copyJar();
+            File baseJarFile = Paths.get(targetDirectory, finalName + ".jar").toFile();
+            urls = extractJarFiles(baseJarFile);
+
         } else {
-            getLog().error("Not implemented");
+
+            // copy `classes` and `dependency` folders
+            java.nio.file.Path targetClassPath = Paths.get(targetDirectory, outConfigFolder, CLASSES_FOLDER);
+            java.nio.file.Path targetDependencyPath = Paths.get(targetDirectory, outConfigFolder, DEPENDENCY_FOLDER);
+            FileUtils.copyDirectoryStructure(
+                    Paths.get(targetDirectory, CLASSES_FOLDER).toFile(),
+                    targetClassPath.toFile()
+            );
+            FileUtils.copyDirectoryStructure(
+                    Paths.get(targetDirectory, DEPENDENCY_FOLDER).toFile(),
+                    targetDependencyPath.toFile()
+            );
+
+            List<URL> urlsList = Files.walk(targetDependencyPath, 1)
+                    .filter(e -> e.toString().endsWith(".jar"))
+                    .map(e -> {
+                        try {
+                            return e.toUri().toURL();
+                        } catch (MalformedURLException ex) {
+                            ex.printStackTrace();
+                        }
+                        return null;
+                    }).filter(e -> e != null).collect(Collectors.toList());
+            urlsList.add(targetClassPath.toUri().toURL());
+            urls = urlsList.toArray(new URL[0]);
+
         }
-        return null;
+
+        return urls;
     }
 
-    private List<Class> getClassesFromJar(String jarFileName, String basePackage) throws IOException, ClassNotFoundException {
-        List<Class> classes = new ArrayList<>();
+    private List<Class> getClasses(URL[] urls) throws IOException {
+        List<Class> classes = null;
 
-        try {
-            File jarFile = new File(jarFileName);
-            URLClassLoader clsLoader = getClassLoader(jarFile);
-            JarFile jar = new JarFile(jarFile);
+        URLClassLoader clsLoader = getClassLoader(urls);
 
-            jar.stream()
-                    .filter(e -> e.getName().endsWith(".class"))
-                    .filter(e -> e.getName().startsWith(project.getGroupId().replace(".", "/")))
-                    .forEach(entry -> {
-                        try {
-                            String className = entry.getName().replace("/", ".")
-                                    .substring(0, entry.getName().length() - 6);
-                            Class classToLoad = Class.forName(className, true, clsLoader);
-                            classes.add(classToLoad);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    });
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (jarPackaging) {
+            String baseJar = String.format("%s/%s.jar", targetDirectory, finalName);
+            classes = getClassesFromJar(baseJar, clsLoader);
+        } else {
+            classes = getClassesFromFileSystem(clsLoader);
         }
+        getLog().info("Discovered " + classes.size() + " classes that might contain endpoints.");
         return classes;
     }
 
-    private URLClassLoader getClassLoader(File jarFile) throws IOException {
+    private List<Class> getClassesFromFileSystem(URLClassLoader clsLoader) throws IOException {
+        List<Class> classes = new ArrayList<>();
 
-        // create folder containing all nested jars
-        Files.createDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME));
-        Files.createDirectory(Paths.get(outputDirectory, TMP_FOLDER_NAME, "lib"));
-        List<File> jarFiles = new ArrayList<>();
+        int tmp = Paths.get(targetDirectory, outConfigFolder, CLASSES_FOLDER).toString().length() + 1;
+        Files.walk(Paths.get(targetDirectory, outConfigFolder, CLASSES_FOLDER), Integer.MAX_VALUE)
+                .filter(e -> e.toString().endsWith(".class"))
+                .forEach(classFileName -> {
+                    try {
+                        String classFileNameString = classFileName.toString();
+                        String className = classFileName.toString().substring(tmp, classFileNameString.length() - 6)
+                                .replace(File.separator, ".");
+                        Class classToLoad = Class.forName(className, true, clsLoader);
+                        classes.add(classToLoad);
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                });
+        return classes;
+    }
 
-        // jars that may be surely ignored when extracting... any better way to extract only the sub-modules?
-        String[] ignoreJars = new String[]{"jetty", "jersey", "jackson", "snakeyaml", "openapi", "microprofile",
-                "kumuluzee", "http2", "org.eclipse.persistence", "h2k"};
+    private List<Class> getClassesFromJar(String jarFileName, URLClassLoader clsLoader) throws IOException {
+        List<Class> classes = new ArrayList<>();
+
+        File jarFile = new File(jarFileName);
         JarFile jar = new JarFile(jarFile);
 
-        // extract all nested jars to tmp folder
+        jar.stream()
+                .filter(e -> e.getName().endsWith(".class"))
+                .filter(e -> e.getName().startsWith(project.getGroupId().replace(".", "/")))
+                .forEach(entry -> {
+                    try {
+                        String className = entry.getName().replace("/", ".")
+                                .substring(0, entry.getName().length() - 6);
+                        Class classToLoad = Class.forName(className, true, clsLoader);
+                        classes.add(classToLoad);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+
+        return classes;
+    }
+
+    private URLClassLoader getClassLoader(URL[] urls) throws IOException {
+
+        return new URLClassLoader(
+                urls,
+                this.getClass().getClassLoader()
+        );
+    }
+
+    private URL[] extractJarFiles (File jarFile) throws IOException {
+
+        final String LIB_FOLDER = "lib/";
+
+        Queue<File> jarFiles = new ConcurrentLinkedQueue<>();
+        JarFile jar = new JarFile(jarFile);
+
+        String clsLoaderFolderAbsPath = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER).toString();
         jar.stream().parallel().forEach(jarEntry -> {
-            // check if file should be extracted...
-            if (!jarEntry.getName().endsWith(".jar")) return;
-            if (!extractAllJars && Arrays.stream(ignoreJars).anyMatch(jarEntry.getName()::contains)){
-                getLog().info("Ignoring " + jarEntry.getName() + " when building azure function config.");
-                return;
-            }
-
-            File targetJar = new File(
-                    Paths.get(outputDirectory, TMP_FOLDER_NAME, jarEntry.getName()).toString());
-
             try {
-                InputStream is = jar.getInputStream(jarEntry);
-                BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(targetJar));
-
-                // copy content
-                while (is.available() > 0)
-                    fos.write(is.read());
-
-                fos.close();
-                is.close();
-
-                jarFiles.add(targetJar);
+                handleJarEntry(jarEntry, LIB_FOLDER, clsLoaderFolderAbsPath, jar, jarFiles);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
         });
 
         jarFiles.add(jarFile);
@@ -247,10 +311,59 @@ public class AzureConfigMojo extends AbstractMojo {
             return null;
         }).filter(e -> e != null).toArray(URL[]::new);
 
-        return new URLClassLoader(
-                jarFilesArray,
-                this.getClass().getClassLoader()
-        );
+        return jarFilesArray;
+    }
+
+    private void handleJarEntry(JarEntry jarEntry, String libFolder, String containerFolder,
+                                JarFile sourceJar, Queue<File> jarFiles) throws IOException {
+
+        if (!jarEntry.getName().startsWith(libFolder) && !jarEntry.isDirectory()) {
+            String targetFileName = Paths.get(containerFolder, jarEntry.getName()).toString();
+            copyJarContent(sourceJar, jarEntry, targetFileName);
+
+        } else if (jarEntry.getName().startsWith(libFolder) && jarEntry.getName().endsWith(".jar")) {
+            java.nio.file.Path targetFile = Paths.get(containerFolder, new File(jarEntry.getName()).getName());
+            copyJarContent(sourceJar, jarEntry, targetFile.toString());
+            jarFiles.add(targetFile.toFile());
+        }
+
+    }
+
+    private static void copyJarContent (JarFile sourceJar, JarEntry sourceEntry, String targetFileName) throws IOException {
+        InputStream is = sourceJar.getInputStream(sourceEntry);
+
+        // create directory if it does not exist already
+        File parentFolder = new File(targetFileName).getParentFile();
+        optCreateDirectory(Paths.get(parentFolder.getAbsolutePath()));
+
+        BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(targetFileName));
+
+        // copy content
+        while (is.available() > 0)
+            fos.write(is.read());
+
+        fos.close();
+        is.close();
+    }
+
+    private void createDirectoryStructure() throws IOException {
+        java.nio.file.Path containerFolder = Paths.get(targetDirectory, outConfigFolder);
+        Files.createDirectories(containerFolder);
+        getLog().info("Configuration will be created in " + containerFolder.toString());
+
+        if (jarPackaging) {
+            java.nio.file.Path eeClsLoaderFolder = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER);
+            Files.createDirectories(eeClsLoaderFolder);
+            chmod777(eeClsLoaderFolder.toFile());
+            getLog().info("Created container folder " + containerFolder.toString());
+        }
+
+    }
+
+    private static void chmod777 (File file) {
+        file.setReadable(true, false);
+        file.setWritable(true, false);
+        file.setExecutable(true, false);
     }
 
     private RestEndpoint createEndpoint(RestMethodEnum restMethodEnum, Method method, Class clazz) {
@@ -261,5 +374,10 @@ public class AzureConfigMojo extends AbstractMojo {
 
     private static String getClassPath(Class clazz) {
         return clazz.isAnnotationPresent(Path.class) ? ((Path)clazz.getAnnotation(Path.class)).value() : "";
+    }
+
+    private static void optCreateDirectory(java.nio.file.Path path) throws IOException {
+        if (!path.toFile().exists())
+            Files.createDirectories(path);
     }
 }
