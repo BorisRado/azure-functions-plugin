@@ -47,12 +47,16 @@ public class AzureConfigMojo extends AbstractMojo {
     @Parameter(property = "extractAllJars", required = false, defaultValue = "false")
     private boolean extractAllJars;
 
+    @Parameter(property = "generateDockerfile", required = false, defaultValue = "true")
+    private boolean generateDockerfile;
+
     private static final String TEMPLATES_FOLDER = "TEMPLATES";
     private static final String FUNCTIONS_FILE = "function.json";
     private static final String HOST_FILE = "host.json";
     private static final String HOST_FILE_EXPLODED = "host_exploded.json";
     private static final String HOST_FILE_JAR = "host_jar.json";
     private static final String LOCAL_SETTINGS_FILE = "local.settings.json";
+    private static final String DOCKERFILE = "Dockerfile";
 
     private static final String CLASSES_FOLDER = "classes";
     private static final String DEPENDENCY_FOLDER = "dependency";
@@ -76,6 +80,9 @@ public class AzureConfigMojo extends AbstractMojo {
             endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
 
             createConfigFiles(endpoints);
+
+            if (generateDockerfile)
+                generateDockerfile();
             clean();
 
         } catch (IOException e) {
@@ -107,6 +114,19 @@ public class AzureConfigMojo extends AbstractMojo {
         String baseHostConfig = jarPackaging ? getConfigTemplate(HOST_FILE_JAR) : getConfigTemplate(HOST_FILE_EXPLODED);
         writeConfigFile(baseHostConfig, baseDirectory.toString(), HOST_FILE);
         writeConfigFile(getConfigTemplate(LOCAL_SETTINGS_FILE), baseDirectory.toString(), LOCAL_SETTINGS_FILE);
+    }
+
+    private void generateDockerfile() {
+        String javaVersion = (String) project.getProperties().get("maven.compiler.target");
+        String dockerTemplate = getConfigTemplate(DOCKERFILE);
+        if (javaVersion.equals("11")) {
+            dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "11");
+        } else if (javaVersion.equals("8") || javaVersion.equals("1.8")) {
+            dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "8");
+        } else {
+            throw new NotImplementedException("Only java 8 and 11 are supported");
+        }
+        writeConfigFile(dockerTemplate, Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
     }
 
     private static String getConfigTemplate(String fileName) {
