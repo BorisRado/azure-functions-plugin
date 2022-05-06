@@ -10,7 +10,9 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
 import si.fri.maven.plugin.enums.ConfigTemplateMapping;
+import si.fri.maven.plugin.enums.JavaVersions;
 import si.fri.maven.plugin.enums.RestMethodEnum;
+import si.fri.maven.plugin.error_handling.ExceptionHandling;
 
 import javax.ws.rs.*;
 import java.io.*;
@@ -93,40 +95,34 @@ public class AzureConfigMojo extends AbstractMojo {
     private void createConfigFiles(List<RestEndpoint> endpoints) throws IOException {
         java.nio.file.Path baseDirectory = Paths.get(targetDirectory, outConfigFolder);
 
-        endpoints.stream().parallel().forEach(endpoint -> {
+        endpoints.stream().parallel().forEach(ExceptionHandling.throwingConsumerWrapper(endpoint -> {
             // create folder
             java.nio.file.Path methodFolder = Paths.get(baseDirectory.toString(), endpoint.getFolderName());
-            try {
-                Files.createDirectories(methodFolder);
+            Files.createDirectories(methodFolder);
 
-                // create functions.json file
-                String config = getConfigTemplate(FUNCTIONS_FILE)
-                        .replace(ConfigTemplateMapping.ENDPOINT_ROUTE.toString(), endpoint.getCompleteURL())
-                        .replace(ConfigTemplateMapping.ENDPOINT_REST_METHOD.toString(), endpoint.getRestMethod().name());
-                writeConfigFile(config, methodFolder.toString(), FUNCTIONS_FILE);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            // create functions.json file
+            String config = getConfigTemplate(FUNCTIONS_FILE)
+                    .replace(ConfigTemplateMapping.ENDPOINT_ROUTE.toString(), endpoint.getCompleteURL())
+                    .replace(ConfigTemplateMapping.ENDPOINT_REST_METHOD.toString(), endpoint.getRestMethod().name());
+            Commons.writeConfigFile(config, methodFolder.toString(), FUNCTIONS_FILE);
 
-        });
+        }));
 
         // still copy host.json and local.settings.json
         String baseHostConfig = jarPackaging ? getConfigTemplate(HOST_FILE_JAR) : getConfigTemplate(HOST_FILE_EXPLODED);
-        writeConfigFile(baseHostConfig, baseDirectory.toString(), HOST_FILE);
-        writeConfigFile(getConfigTemplate(LOCAL_SETTINGS_FILE), baseDirectory.toString(), LOCAL_SETTINGS_FILE);
+        Commons.writeConfigFile(baseHostConfig, baseDirectory.toString(), HOST_FILE);
+        Commons.writeConfigFile(getConfigTemplate(LOCAL_SETTINGS_FILE), baseDirectory.toString(), LOCAL_SETTINGS_FILE);
     }
 
     private void generateDockerfile() {
-        String javaVersion = (String) project.getProperties().get("maven.compiler.target");
+        JavaVersions javaVersion = Commons.getJavaVersion(project);
         String dockerTemplate = getConfigTemplate(DOCKERFILE);
-        if (javaVersion.equals("11")) {
+        if (javaVersion == JavaVersions.JAVA_11)
             dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "11");
-        } else if (javaVersion.equals("8") || javaVersion.equals("1.8")) {
+        else if (javaVersion == JavaVersions.JAVA_8)
             dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "8");
-        } else {
-            throw new NotImplementedException("Only java 8 and 11 are supported");
-        }
-        writeConfigFile(dockerTemplate, Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
+
+        Commons.writeConfigFile(dockerTemplate, Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
     }
 
     private static String getConfigTemplate(String fileName) {
@@ -135,13 +131,6 @@ public class AzureConfigMojo extends AbstractMojo {
                 .useDelimiter("\\A").next();
     }
 
-    private static void writeConfigFile(String config, String folder, String fileName) {
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(Paths.get(folder, fileName).toFile()))) {
-            out.write(config);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     private void copyJar() throws IOException {
         java.nio.file.Path targetFile = Paths.get(targetDirectory, outConfigFolder, "handler.jar");
@@ -259,17 +248,13 @@ public class AzureConfigMojo extends AbstractMojo {
         int tmp = Paths.get(targetDirectory, outConfigFolder, CLASSES_FOLDER).toString().length() + 1;
         Files.walk(Paths.get(targetDirectory, outConfigFolder, CLASSES_FOLDER), Integer.MAX_VALUE)
                 .filter(e -> e.toString().endsWith(".class"))
-                .forEach(classFileName -> {
-                    try {
-                        String classFileNameString = classFileName.toString();
-                        String className = classFileName.toString().substring(tmp, classFileNameString.length() - 6)
-                                .replace(File.separator, ".");
-                        Class classToLoad = Class.forName(className, true, clsLoader);
-                        classes.add(classToLoad);
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                });
+                .forEach(ExceptionHandling.throwingConsumerWrapper(classFileName -> {
+                    String classFileNameString = classFileName.toString();
+                    String className = classFileName.toString().substring(tmp, classFileNameString.length() - 6)
+                            .replace(File.separator, ".");
+                    Class classToLoad = Class.forName(className, true, clsLoader);
+                    classes.add(classToLoad);
+                }));
         return classes;
     }
 
@@ -282,16 +267,12 @@ public class AzureConfigMojo extends AbstractMojo {
         jar.stream()
                 .filter(e -> e.getName().endsWith(".class"))
                 .filter(e -> e.getName().startsWith(project.getGroupId().replace(".", "/")))
-                .forEach(entry -> {
-                    try {
-                        String className = entry.getName().replace("/", ".")
-                                .substring(0, entry.getName().length() - 6);
-                        Class classToLoad = Class.forName(className, true, clsLoader);
-                        classes.add(classToLoad);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                });
+                .forEach(ExceptionHandling.throwingConsumerWrapper(entry -> {
+                    String className = entry.getName().replace("/", ".")
+                            .substring(0, entry.getName().length() - 6);
+                    Class classToLoad = Class.forName(className, true, clsLoader);
+                    classes.add(classToLoad);
+                }));
 
         return classes;
     }
@@ -312,13 +293,9 @@ public class AzureConfigMojo extends AbstractMojo {
         JarFile jar = new JarFile(jarFile);
 
         String clsLoaderFolderAbsPath = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER).toString();
-        jar.stream().parallel().forEach(jarEntry -> {
-            try {
-                handleJarEntry(jarEntry, LIB_FOLDER, clsLoaderFolderAbsPath, jar, jarFiles);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+        jar.stream().parallel().forEach(ExceptionHandling.throwingConsumerWrapper(jarEntry -> {
+            handleJarEntry(jarEntry, LIB_FOLDER, clsLoaderFolderAbsPath, jar, jarFiles);
+        }));
 
         jarFiles.add(jarFile);
 
