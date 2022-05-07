@@ -10,10 +10,18 @@ import si.fri.maven.plugin.enums.JavaVersions;
 import si.fri.maven.plugin.error_handling.ExceptionHandling;
 
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
+import java.util.Scanner;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 @Mojo(name = "deploy")
@@ -22,7 +30,7 @@ public class AzureDeployMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     protected MavenProject project;
 
-    @Parameter(property = "resourceGroupName", required = true)
+    @Parameter(property = "resourceGroupName", required = false)
     private String resourceGroupName;
 
     @Parameter(property = "functionAppName", required = true)
@@ -36,6 +44,9 @@ public class AzureDeployMojo extends AbstractMojo {
 
     @Parameter(property = "configFolder", required = false, defaultValue = "azure-config-folder")
     private String outConfigFolder;
+
+    @Parameter(property = "testApi", required = false, defaultValue = "true")
+    private boolean testApi;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -56,6 +67,8 @@ public class AzureDeployMojo extends AbstractMojo {
             // push to azure functions
             deploy();
 
+            if (false)
+                testCallApi();
             if (removeZipFile) {
                 getLog().info("Deleting " + zipFileName);
                 Files.delete(Paths.get(zipFileName));
@@ -107,12 +120,22 @@ public class AzureDeployMojo extends AbstractMojo {
 
     private void deploy() throws IOException, InterruptedException {
         getLog().info("Deploying app...");
-        try {
-            Process process = Runtime.getRuntime().exec("az --version");
-            deployWithAz();
-        } catch (IOException | InterruptedException e) {
-            getLog().warn("Deployment with `az` failed. Trying with rest...");
+
+        if (resourceGroupName == null) {
+
+            getLog().info("Resource group was not provided. Deploying with curl");
             deployWithCurl();
+
+        } else {
+
+            try {
+                Process process = Runtime.getRuntime().exec("az --version");
+                deployWithAz();
+            } catch (IOException | InterruptedException e) {
+                getLog().warn("Deployment with `az` failed. Trying with rest...");
+                deployWithCurl();
+            }
+
         }
     }
 
@@ -127,8 +150,36 @@ public class AzureDeployMojo extends AbstractMojo {
     private void deployWithCurl() throws IOException, InterruptedException {
         /*String deployString  = String.format("curl -X POST -u %s --data-binary @"%s" https://%s.scm.azurewebsites.net/api/zipdeploy",
                 azureUsername, zipFilePath, functionAppName);*/
-        getLog().error("Not implemented yet...");
-        throw new IOException("");
+        System.out.print("Username: ");
+        String username = new Scanner(System.in).next();
+        Console c = System.console();
+        String password = new String(c.readPassword("Enter host password for user '" + username + "': "));
+
+        String encodedCredentials = Base64.getEncoder().encodeToString(
+                String.format("%s:%s", username, password).getBytes()
+        );
+
+        URL url = new URL(String.format("https://%s.scm.azurewebsites.net/api/zipdeploy", functionAppName));
+        HttpURLConnection http = (HttpURLConnection)url.openConnection();
+        http.setRequestMethod("POST");
+        http.setDoOutput(true);
+        http.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        http.setRequestProperty("Authorization", String.format("Basic %s", encodedCredentials));
+
+        File binaryFile = new File(zipFileName);
+        OutputStream output = http.getOutputStream();
+        Files.copy(binaryFile.toPath(), output);
+        output.flush();
+        output.close();
+
+        if (http.getResponseCode() != HttpURLConnection.HTTP_OK) {
+            getLog().error(String.format("Response: %d %s", http.getResponseCode(), http.getResponseMessage()));
+            throw new IOException("Could not upload zip using REST");
+        } else {
+            getLog().info("ZIP file uploaded correctly.");
+        }
+        http.disconnect();
+
     }
 
     private void runCommandInShell(String command) throws IOException, InterruptedException {
@@ -160,6 +211,14 @@ public class AzureDeployMojo extends AbstractMojo {
         } else {
             getLog().info("Command completed successfully");
         }
+    }
+
+    private void testCallApi() throws IOException {
+        getLog().info("Making first request to the API");
+        URL url = new URL(String.format("https://%s.azurewebsites.net/", functionAppName));
+        HttpURLConnection http = (HttpURLConnection)url.openConnection();
+        getLog().info("Response status code: " + http.getResponseCode());
+        http.disconnect();
     }
 
 }

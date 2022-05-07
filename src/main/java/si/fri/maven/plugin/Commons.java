@@ -2,8 +2,6 @@ package si.fri.maven.plugin;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.maven.project.MavenProject;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 import si.fri.maven.plugin.enums.JavaVersions;
 
 import java.io.*;
@@ -27,24 +25,6 @@ public class Commons {
     }
 
     public static void setJavaPathInHost(Path hostFile, JavaVersions javaVersion) throws IOException {
-        Reader reader = Files.newBufferedReader(hostFile);
-
-        InputStream is = new FileInputStream(hostFile.toString());
-        /*JSONTokener tokener = new JSONTokener(is);
-        JSONObject json = new JSONObject(tokener);
-
-        json.getJSONObject("customHandler")
-                .getJSONObject("description")
-                .put(EXECUTABLE_PATH_KEY, javaVersion.getPath());
-        reader.close();
-
-        // write to file
-        BufferedWriter out = new BufferedWriter(new FileWriter(hostFile.toFile()));
-
-        // decided to avoid this method as it completely destroys the structure of the json when printing out the file
-        out.write(json.toString(4));
-        out.close();*/
-
         String config = Files.readString(hostFile);
         int idx = config.indexOf(EXECUTABLE_PATH_KEY);
         int begin = config.indexOf('"', idx + EXECUTABLE_PATH_KEY.length() + 2);

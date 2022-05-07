@@ -43,6 +43,8 @@ Next steps...?
 ## Plugin for deployment on azure functions
 
 ### Manual deployment
+Documentation can be found [here](https://docs.microsoft.com/en-us/azure/azure-functions/deployment-zip-push).
+
 Under the hood, we use the `.zip` deployment method to push the code to the azure functions. For manual deployment, follow the following steps (tested on Linux for deploying to an azure function with the linux base image):
 1. Build the project with `mvn clean package`;
 2. Create an azure function app on the azure portal. Use the Linux Operating system and the java runtime stack;
@@ -52,10 +54,7 @@ Under the hood, we use the `.zip` deployment method to push the code to the azur
 6. Push the zip to azure functions, `az functionapp deployment source config-zip -g <resource-group-name> -n <function-app-name> --src $(readlink -f app.zip)` - change the resource group name and function name with the values you set during step 2.
 
 ### Automatic deployment
-Steps $3-6$ can be automated with the plugin, by just running the command:
+Steps 3-6 can be automated with the plugin, by just running the command:
 ```bash
 mvn config-generator:deploy -DresourceGroupName=<resource-group-name> -DfunctionAppName=<function-app-name>
 ```
-
-#### TO-DO
-Only deployment with `az` is supported. Extend the plugin to support deployment also with `curl`.
