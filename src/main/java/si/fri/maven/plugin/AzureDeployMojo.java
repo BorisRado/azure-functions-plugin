@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -67,8 +68,9 @@ public class AzureDeployMojo extends AbstractMojo {
             // push to azure functions
             deploy();
 
-            if (false)
+            if (testApi)
                 testCallApi();
+
             if (removeZipFile) {
                 getLog().info("Deleting " + zipFileName);
                 Files.delete(Paths.get(zipFileName));
@@ -129,7 +131,7 @@ public class AzureDeployMojo extends AbstractMojo {
         } else {
 
             try {
-                Process process = Runtime.getRuntime().exec("az --version");
+                Runtime.getRuntime().exec("az --version");
                 deployWithAz();
             } catch (IOException | InterruptedException e) {
                 getLog().warn("Deployment with `az` failed. Trying with rest...");
@@ -141,7 +143,6 @@ public class AzureDeployMojo extends AbstractMojo {
 
     private void deployWithAz() throws IOException, InterruptedException {
         getLog().info("Deploying with `az`");
-        // String zipFilePath = Paths.get(project.getBuild().getDirectory(), zipFileName).toString();
         String deployString  = String.format("az functionapp deployment source config-zip -g %s -n %s --src %s",
                 resourceGroupName, functionAppName, zipFileName);
         runCommandInShell(deployString);
@@ -174,6 +175,7 @@ public class AzureDeployMojo extends AbstractMojo {
 
         if (http.getResponseCode() != HttpURLConnection.HTTP_OK) {
             getLog().error(String.format("Response: %d %s", http.getResponseCode(), http.getResponseMessage()));
+            getLog().error(http.getResponseMessage());
             throw new IOException("Could not upload zip using REST");
         } else {
             getLog().info("ZIP file uploaded correctly.");
@@ -193,7 +195,6 @@ public class AzureDeployMojo extends AbstractMojo {
                 InputStreamReader(proc.getErrorStream()));
 
         // Read the output from the command
-        getLog().info("Output of command:");
         String s = null;
         while ((s = stdInput.readLine()) != null) {
             getLog().info(s);
@@ -213,7 +214,8 @@ public class AzureDeployMojo extends AbstractMojo {
         }
     }
 
-    private void testCallApi() throws IOException {
+    private void testCallApi() throws IOException, InterruptedException {
+        TimeUnit.SECONDS.sleep(10); // seems that calling too soon the API worsens the startup time
         getLog().info("Making first request to the API");
         URL url = new URL(String.format("https://%s.azurewebsites.net/", functionAppName));
         HttpURLConnection http = (HttpURLConnection)url.openConnection();

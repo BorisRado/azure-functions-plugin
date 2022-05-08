@@ -49,7 +49,7 @@ Under the hood, we use the `.zip` deployment method to push the code to the azur
 1. Build the project with `mvn clean package`;
 2. Create an azure function app on the azure portal. Use the Linux Operating system and the java runtime stack;
 3. Navigate to the folder containing all the configuration and code, which was build by the first plugin, `cd target/azure-config-folder/`;
-4. Update the `host.json` by changing the `defaultExecutablePath` to `/usr/lib/jvm/zre-11-azure-amd64/bin/java`;
+4. Update the `host.json` by changing the `defaultExecutablePath` to `%JAVA_HOME%/bin/java`;
 5. Zip all the contents of the folder, `zip -r app.zip .`;
 6. Push the zip to azure functions, `az functionapp deployment source config-zip -g <resource-group-name> -n <function-app-name> --src $(readlink -f app.zip)` - change the resource group name and function name with the values you set during step 2.
 
@@ -58,3 +58,7 @@ Steps 3-6 can be automated with the plugin, by just running the command:
 ```bash
 mvn config-generator:deploy -DresourceGroupName=<resource-group-name> -DfunctionAppName=<function-app-name>
 ```
+Note that the command requires that the `az` binary is installed on your local computer. 
+
+### TO-DO
+The deployment with REST still does not work.
