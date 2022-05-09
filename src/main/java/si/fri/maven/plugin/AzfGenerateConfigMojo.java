@@ -1,6 +1,8 @@
 package si.fri.maven.plugin;
 
-import org.apache.commons.lang3.NotImplementedException;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -9,7 +11,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
-import si.fri.maven.plugin.enums.ConfigTemplateMapping;
 import si.fri.maven.plugin.enums.JavaVersions;
 import si.fri.maven.plugin.enums.RestMethodEnum;
 import si.fri.maven.plugin.error_handling.ExceptionHandling;
@@ -31,8 +32,8 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 
-@Mojo(name = "generate-config-files", defaultPhase = LifecyclePhase.PACKAGE)
-public class AzureConfigMojo extends AbstractMojo {
+@Mojo(name = "azf-generate-config", defaultPhase = LifecyclePhase.PACKAGE)
+public class AzfGenerateConfigMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     protected MavenProject project;
@@ -46,11 +47,11 @@ public class AzureConfigMojo extends AbstractMojo {
     @Parameter(property = "configFolder", required = false, defaultValue = "azure-config-folder")
     private String outConfigFolder;
 
-    @Parameter(property = "extractAllJars", required = false, defaultValue = "false")
-    private boolean extractAllJars;
-
     @Parameter(property = "generateDockerfile", required = false, defaultValue = "true")
     private boolean generateDockerfile;
+
+    @Parameter(property = "javaVersion", required = false)
+    private String javaVersion; // if not set, use the one from project
 
     private static final String TEMPLATES_FOLDER = "TEMPLATES";
     private static final String FUNCTIONS_FILE = "function.json";
@@ -100,34 +101,45 @@ public class AzureConfigMojo extends AbstractMojo {
             java.nio.file.Path methodFolder = Paths.get(baseDirectory.toString(), endpoint.getFolderName());
             Files.createDirectories(methodFolder);
 
-            // create functions.json file
-            String config = getConfigTemplate(FUNCTIONS_FILE)
-                    .replace(ConfigTemplateMapping.ENDPOINT_ROUTE.toString(), endpoint.getCompleteURL())
-                    .replace(ConfigTemplateMapping.ENDPOINT_REST_METHOD.toString(), endpoint.getRestMethod().name());
-            Commons.writeConfigFile(config, methodFolder.toString(), FUNCTIONS_FILE);
+            MustacheFactory mf = new DefaultMustacheFactory();
+            Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, FUNCTIONS_FILE).toString());
+            StringWriter writer = new StringWriter();
+            m.execute(writer, endpoint).flush();
+
+            Commons.writeConfigFile(writer.toString(), methodFolder.toString(), FUNCTIONS_FILE);
 
         }));
 
         // still copy host.json and local.settings.json
-        String baseHostConfig = jarPackaging ? getConfigTemplate(HOST_FILE_JAR) : getConfigTemplate(HOST_FILE_EXPLODED);
-        Commons.writeConfigFile(baseHostConfig, baseDirectory.toString(), HOST_FILE);
+        writeHostJson(baseDirectory);
         Commons.writeConfigFile(getConfigTemplate(LOCAL_SETTINGS_FILE), baseDirectory.toString(), LOCAL_SETTINGS_FILE);
     }
 
-    private void generateDockerfile() {
-        JavaVersions javaVersion = Commons.getJavaVersion(project);
-        String dockerTemplate = getConfigTemplate(DOCKERFILE);
-        if (javaVersion == JavaVersions.JAVA_11)
-            dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "11");
-        else if (javaVersion == JavaVersions.JAVA_8)
-            dockerTemplate = dockerTemplate.replaceAll(ConfigTemplateMapping.JAVA_VERSION.toString(), "8");
+    private void writeHostJson(java.nio.file.Path baseDirectory) throws IOException {
+        String baseHostConfigFile = jarPackaging ? HOST_FILE_JAR : HOST_FILE_EXPLODED;
+        MustacheFactory mf = new DefaultMustacheFactory();
+        Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, baseHostConfigFile).toString());
+        Map<String, String> javaVersionMap = new HashMap();
+        javaVersionMap.put("javaPath", Paths.get("%JAVA_HOME%", "bin", "java").toString());
+        StringWriter writer = new StringWriter();
+        m.execute(writer, javaVersionMap).flush();
+        Commons.writeConfigFile(writer.toString(), baseDirectory.toString(), HOST_FILE);
+    }
 
-        Commons.writeConfigFile(dockerTemplate, Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
+    private void generateDockerfile() throws IOException {
+        JavaVersions javaVersion = Commons.getJavaVersion(project);
+        MustacheFactory mf = new DefaultMustacheFactory();
+        Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, DOCKERFILE).toString());
+        Map<String, String> javaVersionMap = new HashMap();
+        javaVersionMap.put("javaVersion", "11"); // to-do: update this line
+        StringWriter writer = new StringWriter();
+        m.execute(writer, javaVersionMap).flush();
+        Commons.writeConfigFile(writer.toString(), Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
     }
 
     private static String getConfigTemplate(String fileName) {
         String filePath = "/" + Paths.get(TEMPLATES_FOLDER, fileName).toString();
-        return new Scanner(AzureConfigMojo.class.getResourceAsStream(filePath), StandardCharsets.UTF_8)
+        return new Scanner(AzfGenerateConfigMojo.class.getResourceAsStream(filePath), StandardCharsets.UTF_8)
                 .useDelimiter("\\A").next();
     }
 

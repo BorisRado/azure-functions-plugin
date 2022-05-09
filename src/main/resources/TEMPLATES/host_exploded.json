@@ -10,7 +10,7 @@
   },
   "customHandler": {
     "description": {
-      "defaultExecutablePath": "java",
+      "defaultExecutablePath": "{{ javaPath }}",
       "arguments": ["-cp", "classes:dependency/*", "com.kumuluz.ee.EeApplication"]
     },
     "enableForwardingHttpRequest": true

@@ -4,12 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>si.fri</groupId>
-    <artifactId>config-generator-maven-plugin</artifactId>
+    <groupId>si.fri</groupId><!--com.kumuluz.ee-->
+    <artifactId>serverless-maven-plugin</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
 
-    <name>My hello world plugin</name>
+    <name>Plugin for deployment of JavaEE applications on serverless environments</name>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -17,6 +17,8 @@
 
         <maven.plugin.version>3.6.0</maven.plugin.version>
         <kumuluzee.version>4.0.0-beta.1</kumuluzee.version>
+
+        <moustache.version>0.9.10</moustache.version>
     </properties>
 
     <dependencies>
@@ -41,6 +43,13 @@
             <artifactId>kumuluzee-jax-rs-jersey</artifactId>
             <version>${kumuluzee.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
+            <version>${moustache.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>

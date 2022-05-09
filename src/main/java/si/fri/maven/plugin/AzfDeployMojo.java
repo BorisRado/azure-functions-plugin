@@ -1,5 +1,5 @@
 package si.fri.maven.plugin;
-
+// package com.kumuluz.ee.serverless.azf
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -11,10 +11,7 @@ import si.fri.maven.plugin.error_handling.ExceptionHandling;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,11 +19,10 @@ import java.util.Base64;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-@Mojo(name = "deploy")
-public class AzureDeployMojo extends AbstractMojo {
+@Mojo(name = "azf-deploy")
+public class AzfDeployMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     protected MavenProject project;
@@ -37,17 +33,17 @@ public class AzureDeployMojo extends AbstractMojo {
     @Parameter(property = "functionAppName", required = true)
     private String functionAppName;
 
-    @Parameter(property = "zipFileName", required = false, defaultValue = "app.zip")
+    @Parameter(property = "zipFileName", required = false, defaultValue = "kumuluzEeAzFunction.zip")
     private String zipFileName;
 
     @Parameter(property = "removeZipFile", required = false, defaultValue = "true")
     private boolean removeZipFile;
 
-    @Parameter(property = "configFolder", required = false, defaultValue = "azure-config-folder")
+    @Parameter(property = "configFolder", required = false, defaultValue = "azf-config")
     private String outConfigFolder;
 
-    @Parameter(property = "testApi", required = false, defaultValue = "true")
-    private boolean testApi;
+    @Parameter(property = "initialInvoke", required = false, defaultValue = "true")
+    private boolean initialInvoke;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -68,12 +64,13 @@ public class AzureDeployMojo extends AbstractMojo {
             // push to azure functions
             deploy();
 
-            if (testApi)
-                testCallApi();
-
             if (removeZipFile) {
                 getLog().info("Deleting " + zipFileName);
                 Files.delete(Paths.get(zipFileName));
+            }
+
+            if (initialInvoke) {
+                testCallAzf();
             }
 
         } catch (IOException | InterruptedException e) {
@@ -211,7 +208,7 @@ public class AzureDeployMojo extends AbstractMojo {
         }
     }
 
-    private void testCallApi() throws IOException, InterruptedException {
+    private void testCallAzf() throws IOException, InterruptedException {
         TimeUnit.SECONDS.sleep(10); // seems that calling too soon the API worsens the startup time
         getLog().info("Making first request to the API");
         URL url = new URL(String.format("https://%s.azurewebsites.net/", functionAppName));

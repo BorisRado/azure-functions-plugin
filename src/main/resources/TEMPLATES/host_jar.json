@@ -10,7 +10,7 @@
   },
   "customHandler": {
     "description": {
-      "defaultExecutablePath": "java",
+      "defaultExecutablePath": "{{ javaPath }}",
       "arguments": ["-jar", "handler.jar"]
     },
     "enableForwardingHttpRequest": true

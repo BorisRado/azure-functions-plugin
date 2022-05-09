@@ -1,6 +1,7 @@
 package si.fri.maven.plugin.enums;
 
 public enum JavaVersions {
+    // default java ome ->> add docs
     JAVA_DEFAULT("java"),
     JAVA_8("%JAVA_HOME%/bin/java"),
     JAVA_11("%JAVA_HOME%/bin/java");

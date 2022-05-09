@@ -1,4 +1,4 @@
-ARG JAVA_VERSION=__JAVA_VERSION__
+ARG JAVA_VERSION={{javaVersion}}
 
 FROM mcr.microsoft.com/azure-functions/java:4-java__JAVA_VERSION__-slim
 
