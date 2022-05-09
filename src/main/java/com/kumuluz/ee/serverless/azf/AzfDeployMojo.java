@@ -1,4 +1,4 @@
-package si.fri.maven.plugin;
+package com.kumuluz.ee.serverless.azf;
 // package com.kumuluz.ee.serverless.azf
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -6,8 +6,8 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import si.fri.maven.plugin.enums.JavaVersions;
-import si.fri.maven.plugin.error_handling.ExceptionHandling;
+import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
+import com.kumuluz.ee.serverless.azf.error_handling.ExceptionHandling;
 
 import java.io.*;
 import java.net.HttpURLConnection;

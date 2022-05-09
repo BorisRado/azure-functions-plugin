@@ -1,4 +1,4 @@
-package si.fri.maven.plugin.enums;
+package com.kumuluz.ee.serverless.azf.enums;
 
 public enum JavaVersions {
     // default java ome ->> add docs

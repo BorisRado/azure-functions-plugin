@@ -1,4 +1,4 @@
-package si.fri.maven.plugin.error_handling;
+package com.kumuluz.ee.serverless.azf.error_handling;
 
 @FunctionalInterface
 public interface ThrowingConsumer<T, E extends Exception> {

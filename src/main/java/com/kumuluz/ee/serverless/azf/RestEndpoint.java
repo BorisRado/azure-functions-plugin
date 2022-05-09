@@ -1,6 +1,6 @@
-package si.fri.maven.plugin;
+package com.kumuluz.ee.serverless.azf;
 
-import si.fri.maven.plugin.enums.RestMethodEnum;
+import com.kumuluz.ee.serverless.azf.enums.RestMethodEnum;
 
 public class RestEndpoint {
 

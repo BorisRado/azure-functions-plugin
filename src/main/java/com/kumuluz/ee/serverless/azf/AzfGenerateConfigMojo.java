@@ -1,8 +1,9 @@
-package si.fri.maven.plugin;
+package com.kumuluz.ee.serverless.azf;
 
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
+import com.kumuluz.ee.serverless.azf.error_handling.ExceptionHandling;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -11,9 +12,8 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
-import si.fri.maven.plugin.enums.JavaVersions;
-import si.fri.maven.plugin.enums.RestMethodEnum;
-import si.fri.maven.plugin.error_handling.ExceptionHandling;
+import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
+import com.kumuluz.ee.serverless.azf.enums.RestMethodEnum;
 
 import javax.ws.rs.*;
 import java.io.*;

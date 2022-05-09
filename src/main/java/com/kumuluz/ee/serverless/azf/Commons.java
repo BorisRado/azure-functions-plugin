@@ -1,14 +1,13 @@
-package si.fri.maven.plugin;
+package com.kumuluz.ee.serverless.azf;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.maven.project.MavenProject;
-import si.fri.maven.plugin.enums.JavaVersions;
+import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 
 public class Commons {
 
