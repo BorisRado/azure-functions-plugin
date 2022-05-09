@@ -7,8 +7,4 @@ ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
 
 WORKDIR /home/site/wwwroot
 COPY ["./", "/home/site/wwwroot"]
-RUN if [ "__JAVA_VERSION__"  = "11" ]; then \
-      sed -i 's/"defaultExecutablePath": "java"/"defaultExecutablePath": "\/usr\/lib\/jvm\/zre-11-azure-amd64\/bin\/java"/' host.json; \
-    else \
-      sed -i 's/"defaultExecutablePath": "java"/"defaultExecutablePath": "\/usr\/lib\/jvm\/adoptium-8-x64\/bin\/java"/' host.json; \
-    fi;
+RUN sed -i 's/"defaultExecutablePath": "java"/"defaultExecutablePath": "%JAVA_HOME%\/bin\/java"/' host.json

@@ -33,7 +33,6 @@ public class Commons {
         writeConfigFile(newConfig, hostFile.toFile());
     }
 
-
     protected static void writeConfigFile(String config, String folder, String fileName) {
         writeConfigFile(config, Paths.get(folder, fileName).toFile());
     }

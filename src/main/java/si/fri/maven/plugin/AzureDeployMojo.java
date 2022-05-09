@@ -149,12 +149,9 @@ public class AzureDeployMojo extends AbstractMojo {
     }
 
     private void deployWithCurl() throws IOException, InterruptedException {
-        /*String deployString  = String.format("curl -X POST -u %s --data-binary @"%s" https://%s.scm.azurewebsites.net/api/zipdeploy",
-                azureUsername, zipFilePath, functionAppName);*/
         System.out.print("Username: ");
         String username = new Scanner(System.in).next();
-        Console c = System.console();
-        String password = new String(c.readPassword("Enter host password for user '" + username + "': "));
+        String password = new String(System.console().readPassword("Enter host password for user '" + username + "': "));
 
         String encodedCredentials = Base64.getEncoder().encodeToString(
                 String.format("%s:%s", username, password).getBytes()
