@@ -1,12 +1,11 @@
 package com.kumuluz.ee.serverless.azf;
-// package com.kumuluz.ee.serverless.azf
+
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
 import com.kumuluz.ee.serverless.azf.error_handling.ExceptionHandling;
 
 import java.io.*;
@@ -45,21 +44,26 @@ public class AzfDeployMojo extends AbstractMojo {
     @Parameter(property = "initialInvoke", required = false, defaultValue = "true")
     private boolean initialInvoke;
 
+    @Parameter(property = "hostOperatingSystem",  required = false)
+    private String hostOperatingSystem;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
 
         try {
-            Commons.setJavaPathInHost(
-                    Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
-                    Commons.getJavaVersion(project)
-            );
+            if (hostOperatingSystem != null)
+                Commons.setJavaPathInHost(
+                        Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
+                        Commons.getJavaPathOS(hostOperatingSystem)
+                );
 
             zipConfigAndCode();
 
             // restore java version
-            Commons.setJavaPathInHost(
-                    Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
-                    JavaVersions.JAVA_DEFAULT
-            );
+            if (hostOperatingSystem != null)
+                Commons.setJavaPathInHost(
+                        Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
+                        Commons.getJavaPath()
+                );
 
             // push to azure functions
             deploy();

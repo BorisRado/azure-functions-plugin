@@ -19,6 +19,7 @@
         <kumuluzee.version>4.0.0-beta.1</kumuluzee.version>
 
         <moustache.version>0.9.10</moustache.version>
+        <classgraph.version>4.8.138</classgraph.version>
     </properties>
 
     <dependencies>
@@ -49,6 +50,12 @@
             <artifactId>compiler</artifactId>
             <version>${moustache.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.classgraph</groupId>
+            <artifactId>classgraph</artifactId>
+            <version>${classgraph.version}</version>
+        </dependency>
+
 
     </dependencies>
 

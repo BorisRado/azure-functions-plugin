@@ -1,8 +1,6 @@
 package com.kumuluz.ee.serverless.azf;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.maven.project.MavenProject;
-import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -12,23 +10,22 @@ import java.nio.file.Paths;
 public class Commons {
 
     private final static String EXECUTABLE_PATH_KEY = "defaultExecutablePath";
+    private final static String LINUX_JAVA_PATH = "%JAVA_PATH%/bin/java";
+    private final static String WINDOWS_JAVA_PATH = "%JAVA_PATH%\\bin\\java";
 
-    public static JavaVersions getJavaVersion(MavenProject project) {
+    public static String getJavaVersion(MavenProject project) {
         String javaVersion = (String) project.getProperties().get("maven.compiler.target");
-        if (javaVersion.equals("11"))
-            return JavaVersions.JAVA_11;
-        else if (javaVersion.equals("8") || javaVersion.equals("1.8"))
-            return JavaVersions.JAVA_8;
-        else
-            throw new NotImplementedException("Only java 8 and 11 are supported");
+        if (javaVersion.equals("1.8"))
+            javaVersion = "8";
+        return javaVersion;
     }
 
-    public static void setJavaPathInHost(Path hostFile, JavaVersions javaVersion) throws IOException {
+    public static void setJavaPathInHost(Path hostFile, String javaVersion) throws IOException {
         String config = Files.readString(hostFile);
         int idx = config.indexOf(EXECUTABLE_PATH_KEY);
         int begin = config.indexOf('"', idx + EXECUTABLE_PATH_KEY.length() + 2);
         int end = config.indexOf('"', begin + 1);
-        String newConfig = config.substring(0, begin + 1) + javaVersion.getPath() + config.substring(end);
+        String newConfig = config.substring(0, begin + 1) + javaVersion + config.substring(end);
         writeConfigFile(newConfig, hostFile.toFile());
     }
 
@@ -42,5 +39,18 @@ public class Commons {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    protected static String getJavaPath() {
+        return Paths.get("%JAVA_HOME%", "bin", "java").toString();
+    }
+
+    protected static String getJavaPathOS(String os) throws IOException {
+        if (os.equals("linux"))
+            return LINUX_JAVA_PATH;
+        else if (os.equals("windows"))
+            return WINDOWS_JAVA_PATH;
+        else
+            throw new IOException(String.format("Invalid operating system selected! Valid values are [%s, %s]", "linux", "windows"));
     }
 }

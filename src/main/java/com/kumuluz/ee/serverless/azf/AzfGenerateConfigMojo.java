@@ -12,7 +12,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
-import com.kumuluz.ee.serverless.azf.enums.JavaVersions;
 import com.kumuluz.ee.serverless.azf.enums.RestMethodEnum;
 
 import javax.ws.rs.*;
@@ -44,7 +43,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.build.finalName}")
     private String finalName;
 
-    @Parameter(property = "configFolder", required = false, defaultValue = "azure-config-folder")
+    @Parameter(property = "configFolder", required = false, defaultValue = "azf-config")
     private String outConfigFolder;
 
     @Parameter(property = "generateDockerfile", required = false, defaultValue = "true")
@@ -120,18 +119,17 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         MustacheFactory mf = new DefaultMustacheFactory();
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, baseHostConfigFile).toString());
         Map<String, String> javaVersionMap = new HashMap();
-        javaVersionMap.put("javaPath", Paths.get("%JAVA_HOME%", "bin", "java").toString());
+        javaVersionMap.put("javaPath", Commons.getJavaPath());
         StringWriter writer = new StringWriter();
         m.execute(writer, javaVersionMap).flush();
         Commons.writeConfigFile(writer.toString(), baseDirectory.toString(), HOST_FILE);
     }
 
     private void generateDockerfile() throws IOException {
-        JavaVersions javaVersion = Commons.getJavaVersion(project);
         MustacheFactory mf = new DefaultMustacheFactory();
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, DOCKERFILE).toString());
         Map<String, String> javaVersionMap = new HashMap();
-        javaVersionMap.put("javaVersion", "11"); // to-do: update this line
+        javaVersionMap.put("javaVersion", Commons.getJavaVersion(project));
         StringWriter writer = new StringWriter();
         m.execute(writer, javaVersionMap).flush();
         Commons.writeConfigFile(writer.toString(), Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
