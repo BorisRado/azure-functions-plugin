@@ -1,5 +1,6 @@
 package com.kumuluz.ee.serverless.azf;
 
+import com.kumuluz.ee.serverless.common.Commons;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;

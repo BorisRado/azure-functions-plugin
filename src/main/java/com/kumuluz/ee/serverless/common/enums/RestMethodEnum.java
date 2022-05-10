@@ -1,4 +1,4 @@
-package com.kumuluz.ee.serverless.azf.enums;
+package com.kumuluz.ee.serverless.common.enums;
 
 public enum RestMethodEnum {
     GET,

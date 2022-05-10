@@ -1,6 +1,6 @@
-package com.kumuluz.ee.serverless.azf;
+package com.kumuluz.ee.serverless.common.pojo;
 
-import com.kumuluz.ee.serverless.azf.enums.RestMethodEnum;
+import com.kumuluz.ee.serverless.common.enums.RestMethodEnum;
 
 public class RestEndpoint {
 

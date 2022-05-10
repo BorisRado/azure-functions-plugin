@@ -1,4 +1,4 @@
-package com.kumuluz.ee.serverless.azf;
+package com.kumuluz.ee.serverless.common;
 
 import org.apache.maven.project.MavenProject;
 
@@ -20,6 +20,10 @@ public class Commons {
         return javaVersion;
     }
 
+    public static boolean getIsJarPackaging(MavenProject project) {
+        return project.getBuildPlugins().stream().anyMatch(e -> e.toString().contains("kumuluzee-maven-plugin"));
+    }
+
     public static void setJavaPathInHost(Path hostFile, String javaVersion) throws IOException {
         String config = Files.readString(hostFile);
         int idx = config.indexOf(EXECUTABLE_PATH_KEY);
@@ -29,7 +33,13 @@ public class Commons {
         writeConfigFile(newConfig, hostFile.toFile());
     }
 
-    protected static void writeConfigFile(String config, String folder, String fileName) {
+    /**
+     * Writes the String `config` to the file `fileName`, which is in the folder `folder`
+     * @param config string to write
+     * @param folder
+     * @param fileName
+     */
+    public static void writeConfigFile(String config, String folder, String fileName) {
         writeConfigFile(config, Paths.get(folder, fileName).toFile());
     }
 
@@ -41,11 +51,11 @@ public class Commons {
         }
     }
 
-    protected static String getJavaPath() {
+    public static String getJavaPath() {
         return Paths.get("%JAVA_HOME%", "bin", "java").toString();
     }
 
-    protected static String getJavaPathOS(String os) throws IOException {
+    public static String getJavaPathOS(String os) throws IOException {
         if (os.equals("linux"))
             return LINUX_JAVA_PATH;
         else if (os.equals("windows"))
