@@ -36,10 +36,7 @@ This will generate a folder (`azure-config-folder`) inside the `target` folder o
 You can change the name of the target folder by specifying `-DconfigFolder=<folder-name>`.
 
 ### So-far, to-do
-The plugin supports both JAR packaging and copy-dependency packaging. It supports multi-module projects as well.
-
-Next steps...?
-
+Still not support [these use cases](https://stackoverflow.com/questions/25755130/nested-resources-in-jersey-jax-rs-how-to-implement-restangular-example/25775371#25775371). See if you can use the [jersley implementation](https://github.com/eclipse-ee4j/jersey)
 ## Plugin for deployment on azure functions
 
 ### Manual deployment

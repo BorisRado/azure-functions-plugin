@@ -8,6 +8,7 @@ import io.github.classgraph.ScanResult;
 import org.apache.maven.project.MavenProject;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class ProjectParser {
@@ -31,6 +32,7 @@ public class ProjectParser {
                 getApplicationBaseUrl(result);
             }
         }
+        endpoints.sort(Comparator.comparing(o -> o.toString()));
         return endpoints;
     }
 

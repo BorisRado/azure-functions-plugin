@@ -37,12 +37,6 @@ public class Commons {
         writeConfigFile(newConfig, hostFile.toFile());
     }
 
-    /**
-     * Writes the String `config` to the file `fileName`, which is in the folder `folder`
-     * @param config string to write
-     * @param folder
-     * @param fileName
-     */
     public static void writeConfigFile(String config, String folder, String fileName) {
         writeConfigFile(config, Paths.get(folder, fileName).toFile());
     }

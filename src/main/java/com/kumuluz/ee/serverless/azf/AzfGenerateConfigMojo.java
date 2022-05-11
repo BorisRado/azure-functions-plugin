@@ -9,7 +9,6 @@ import com.kumuluz.ee.serverless.common.ProjectParser;
 import com.kumuluz.ee.serverless.common.pojo.RestEndpoint;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -30,34 +29,31 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     protected MavenProject project;
 
     @Parameter(defaultValue = "${project.build.directory}")
-    private String targetDirectory;
-
-    @Parameter(defaultValue = "${project.build.finalName}")
-    private String finalName;
+    private String targetFolder;
 
     @Parameter(property = "configFolder", required = false, defaultValue = "azf-config")
-    private String outConfigFolder;
+    private String configFolder;
 
-    @Parameter(property = "generateDockerfile", required = false, defaultValue = "true")
+    @Parameter(property = "generateDockerfile", required = false, defaultValue = "false")
     private boolean generateDockerfile;
 
     @Parameter(property = "javaVersion", required = false)
     private String javaVersion; // if not set, use the one from project
 
-    private static final String TEMPLATES_FOLDER = "TEMPLATES";
-    private static final String FUNCTIONS_FILE = "function.json";
-    private static final String HOST_FILE = "host.json";
-    private static final String HOST_FILE_EXPLODED = "host_exploded.json";
-    private static final String HOST_FILE_JAR = "host_jar.json";
-    private static final String LOCAL_SETTINGS_FILE = "local.settings.json";
-    private static final String DOCKERFILE = "Dockerfile";
+    protected static final String TEMPLATES_FOLDER = "TEMPLATES";
+    protected static final String FUNCTIONS_FILE = "function.json";
+    protected static final String HOST_FILE = "host.json";
+    protected static final String HOST_FILE_EXPLODED = "host_exploded.json";
+    protected static final String HOST_FILE_JAR = "host_jar.json";
+    protected static final String LOCAL_SETTINGS_FILE = "local.settings.json";
+    protected static final String DOCKERFILE = "Dockerfile";
 
     private static final String EE_CLS_LOADER_FOLDER = Paths.get("tmp", "EeClassLoader").toString();
 
     private boolean jarPackaging; // true when jar, false when "copy-dependencies"
 
     @Override
-    public void execute() throws MojoExecutionException, MojoFailureException {
+    public void execute() throws MojoExecutionException {
         jarPackaging = Commons.getIsJarPackaging(project);
         String jarMsg = jarPackaging ? "Detected jar packaging" : "Detected `copy-dependencies` packaging";
         getLog().info(jarMsg);
@@ -66,34 +62,35 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
 
             createDirectoryStructure();
             List<RestEndpoint> endpoints = ProjectParser.getEndpoints(project);
+
             getLog().info("Found " + endpoints.size() + " endpoints in total");
-            endpoints.sort(Comparator.comparing(o -> o.toString()));
             endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
 
             createConfigFiles(endpoints);
 
             if (generateDockerfile)
                 generateDockerfile();
-            clean();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new MojoExecutionException("Failed to generate config", e);
         }
     }
 
     private void createConfigFiles(List<RestEndpoint> endpoints) throws IOException {
-        Path baseDirectory = Paths.get(targetDirectory, outConfigFolder);
+        Path baseDirectory = Paths.get(targetFolder, configFolder);
 
         endpoints.stream().parallel().forEach(ExceptionHandling.throwingConsumerWrapper(endpoint -> {
             // create folder
             Path methodFolder = Paths.get(baseDirectory.toString(), endpoint.getFolderName());
             Files.createDirectories(methodFolder);
 
+            // set values in configuration
             MustacheFactory mf = new DefaultMustacheFactory();
             Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, FUNCTIONS_FILE).toString());
             StringWriter writer = new StringWriter();
             m.execute(writer, endpoint).flush();
 
+            // write configuration to file
             Commons.writeConfigFile(writer.toString(), methodFolder.toString(), FUNCTIONS_FILE);
 
         }));
@@ -104,13 +101,14 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     }
 
     private void writeHostJson(Path baseDirectory) throws IOException {
+        // creates a `host.json` file with the appropriate configuration
         String baseHostConfigFile = jarPackaging ? HOST_FILE_JAR : HOST_FILE_EXPLODED;
         MustacheFactory mf = new DefaultMustacheFactory();
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, baseHostConfigFile).toString());
-        Map<String, String> javaVersionMap = new HashMap<>();
-        javaVersionMap.put("javaPath", Commons.getJavaPath());
+        Map<String, String> javaPathMap = new HashMap<>();
+        javaPathMap.put("javaPath", Commons.getJavaPath());
         StringWriter writer = new StringWriter();
-        m.execute(writer, javaVersionMap).flush();
+        m.execute(writer, javaPathMap).flush();
         Commons.writeConfigFile(writer.toString(), baseDirectory.toString(), HOST_FILE);
     }
 
@@ -121,37 +119,26 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         javaVersionMap.put("javaVersion", javaVersion != null ? javaVersion : Commons.getJavaVersion(project));
         StringWriter writer = new StringWriter();
         m.execute(writer, javaVersionMap).flush();
-        Commons.writeConfigFile(writer.toString(), Paths.get(targetDirectory, outConfigFolder).toString(), DOCKERFILE);
+        Commons.writeConfigFile(writer.toString(), Paths.get(targetFolder, configFolder).toString(), DOCKERFILE);
     }
 
     private static String getConfigTemplate(String fileName) {
-        String filePath = "/" + Paths.get(TEMPLATES_FOLDER, fileName).toString();
-        return new Scanner(AzfGenerateConfigMojo.class.getResourceAsStream(filePath), StandardCharsets.UTF_8)
+        // reads the file `fileName` in the templates folder and returns it as a string
+        String filePath =  Paths.get(TEMPLATES_FOLDER, fileName).toString();;
+        return new Scanner(AzfGenerateConfigMojo.class.getClassLoader().getResourceAsStream(filePath), StandardCharsets.UTF_8)
                 .useDelimiter("\\A").next();
     }
 
-    private void clean() throws IOException {
-        if (jarPackaging) {
-            File tmpFolder = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER).toFile();
-            for (File file: tmpFolder.listFiles())
-                if (file.getName().endsWith(".jar"))
-                    file.delete();
-        }
-
-    }
-
     private void createDirectoryStructure() throws IOException {
-        Path containerFolder = Paths.get(targetDirectory, outConfigFolder);
+        Path containerFolder = Paths.get(targetFolder, configFolder);
         Files.createDirectories(containerFolder);
-        getLog().info("Configuration will be created in " + containerFolder.toString());
+        getLog().info("Configuration will be created in " + containerFolder);
 
         if (jarPackaging) {
-            Path eeClsLoaderFolder = Paths.get(targetDirectory, outConfigFolder, EE_CLS_LOADER_FOLDER);
+            Path eeClsLoaderFolder = Paths.get(containerFolder.toString(), EE_CLS_LOADER_FOLDER);
             Files.createDirectories(eeClsLoaderFolder);
             chmod777(eeClsLoaderFolder.toFile());
-            getLog().info("Created container folder " + containerFolder.toString());
         }
-
     }
 
     private static void chmod777 (File file) {

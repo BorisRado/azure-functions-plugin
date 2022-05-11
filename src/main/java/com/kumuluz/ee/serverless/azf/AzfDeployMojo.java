@@ -3,7 +3,6 @@ package com.kumuluz.ee.serverless.azf;
 import com.kumuluz.ee.serverless.common.Commons;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -40,7 +39,7 @@ public class AzfDeployMojo extends AbstractMojo {
     private boolean removeZipFile;
 
     @Parameter(property = "configFolder", required = false, defaultValue = "azf-config")
-    private String outConfigFolder;
+    private String configFolder;
 
     @Parameter(property = "initialInvoke", required = false, defaultValue = "true")
     private boolean initialInvoke;
@@ -48,23 +47,17 @@ public class AzfDeployMojo extends AbstractMojo {
     @Parameter(property = "hostOperatingSystem",  required = false)
     private String hostOperatingSystem;
 
-    public void execute() throws MojoExecutionException, MojoFailureException {
+    public void execute() throws MojoExecutionException {
 
         try {
             if (hostOperatingSystem != null)
-                Commons.setJavaPathInHost(
-                        Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
-                        Commons.getJavaPathOS(hostOperatingSystem)
-                );
+                setJavaPathInHost(Commons.getJavaPathOS(hostOperatingSystem));
 
             zipConfigAndCode();
 
             // restore java version
             if (hostOperatingSystem != null)
-                Commons.setJavaPathInHost(
-                        Paths.get(project.getBuild().getDirectory(), outConfigFolder, "host.json"),
-                        Commons.getJavaPath()
-                );
+                setJavaPathInHost(Commons.getJavaPath());
 
             // push to azure functions
             deploy();
@@ -79,15 +72,21 @@ public class AzfDeployMojo extends AbstractMojo {
             }
 
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            throw new MojoExecutionException("");
+            throw new MojoExecutionException("Failed to deploy", e);
         }
 
     }
 
+    private void setJavaPathInHost(String javaPath) throws IOException {
+        Commons.setJavaPathInHost(
+                Paths.get(project.getBuild().getDirectory(), configFolder, AzfGenerateConfigMojo.HOST_FILE),
+                javaPath
+        );
+    }
+
     private void zipConfigAndCode() throws IOException {
         getLog().info("Zipping code and configuration to " + zipFileName);
-        Path folder = Paths.get(project.getBuild().getDirectory(), outConfigFolder);
+        Path folder = Paths.get(project.getBuild().getDirectory(), configFolder);
         FileOutputStream fos = new FileOutputStream(zipFileName);
         ZipOutputStream zipOut = new ZipOutputStream(fos);
         Files.walk(folder, Integer.MAX_VALUE).forEach(ExceptionHandling.throwingConsumerWrapper(file -> {
@@ -194,7 +193,7 @@ public class AzfDeployMojo extends AbstractMojo {
                 InputStreamReader(proc.getErrorStream()));
 
         // Read the output from the command
-        String s = null;
+        String s;
         while ((s = stdInput.readLine()) != null) {
             getLog().info(s);
         }
