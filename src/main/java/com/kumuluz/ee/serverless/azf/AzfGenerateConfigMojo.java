@@ -59,6 +59,9 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         jarPackaging = Commons.getIsJarPackaging(project);
+        String jarMsg = jarPackaging ? "Detected jar packaging" : "Detected `copy-dependencies` packaging";
+        getLog().info(jarMsg);
+
         try {
 
             createDirectoryStructure();
@@ -104,7 +107,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         String baseHostConfigFile = jarPackaging ? HOST_FILE_JAR : HOST_FILE_EXPLODED;
         MustacheFactory mf = new DefaultMustacheFactory();
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, baseHostConfigFile).toString());
-        Map<String, String> javaVersionMap = new HashMap();
+        Map<String, String> javaVersionMap = new HashMap<>();
         javaVersionMap.put("javaPath", Commons.getJavaPath());
         StringWriter writer = new StringWriter();
         m.execute(writer, javaVersionMap).flush();
@@ -114,7 +117,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     private void generateDockerfile() throws IOException {
         MustacheFactory mf = new DefaultMustacheFactory();
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, DOCKERFILE).toString());
-        Map<String, String> javaVersionMap = new HashMap();
+        Map<String, String> javaVersionMap = new HashMap<>();
         javaVersionMap.put("javaVersion", javaVersion != null ? javaVersion : Commons.getJavaVersion(project));
         StringWriter writer = new StringWriter();
         m.execute(writer, javaVersionMap).flush();

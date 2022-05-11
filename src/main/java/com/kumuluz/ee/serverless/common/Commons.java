@@ -1,11 +1,13 @@
 package com.kumuluz.ee.serverless.common;
 
+import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 public class Commons {
 
@@ -20,8 +22,10 @@ public class Commons {
         return javaVersion;
     }
 
+    @SuppressWarnings("unchecked")
     public static boolean getIsJarPackaging(MavenProject project) {
-        return project.getBuildPlugins().stream().anyMatch(e -> e.toString().contains("kumuluzee-maven-plugin"));
+        List<Plugin> buildPlugins = (List<Plugin>) project.getBuildPlugins();
+        return buildPlugins.stream().anyMatch(plugin -> plugin.getArtifactId().equals("kumuluzee-maven-plugin"));
     }
 
     public static void setJavaPathInHost(Path hostFile, String javaVersion) throws IOException {
