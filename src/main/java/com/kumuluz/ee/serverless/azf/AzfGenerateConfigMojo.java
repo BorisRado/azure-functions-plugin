@@ -20,6 +20,7 @@ import java.nio.file.Files;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @Mojo(name = "azf-generate-config", defaultPhase = LifecyclePhase.PACKAGE)
@@ -67,6 +68,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
             endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
 
             createConfigFiles(endpoints);
+            copyJar();
 
             if (generateDockerfile)
                 generateDockerfile();
@@ -110,6 +112,12 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         StringWriter writer = new StringWriter();
         m.execute(writer, javaPathMap).flush();
         Commons.writeConfigFile(writer.toString(), baseDirectory.toString(), HOST_FILE);
+    }
+
+    private void copyJar() throws IOException {
+        java.nio.file.Path targetFile = Paths.get(targetFolder, configFolder, "handler.jar");
+        java.nio.file.Path sourceFile = Paths.get(targetFolder, project.getBuild().getFinalName() + ".jar");
+        Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private void generateDockerfile() throws IOException {

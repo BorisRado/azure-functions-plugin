@@ -11,10 +11,6 @@ import java.util.List;
 
 public class Commons {
 
-    private final static String EXECUTABLE_PATH_KEY = "defaultExecutablePath";
-    private final static String LINUX_JAVA_PATH = "%JAVA_PATH%/bin/java";
-    private final static String WINDOWS_JAVA_PATH = "%JAVA_PATH%\\bin\\java";
-
     public static String getJavaVersion(MavenProject project) {
         String javaVersion = (String) project.getProperties().get("maven.compiler.target");
         if (javaVersion.equals("1.8"))
@@ -26,15 +22,6 @@ public class Commons {
     public static boolean getIsJarPackaging(MavenProject project) {
         List<Plugin> buildPlugins = (List<Plugin>) project.getBuildPlugins();
         return buildPlugins.stream().anyMatch(plugin -> plugin.getArtifactId().equals("kumuluzee-maven-plugin"));
-    }
-
-    public static void setJavaPathInHost(Path hostFile, String javaVersion) throws IOException {
-        String config = Files.readString(hostFile);
-        int idx = config.indexOf(EXECUTABLE_PATH_KEY);
-        int begin = config.indexOf('"', idx + EXECUTABLE_PATH_KEY.length() + 2);
-        int end = config.indexOf('"', begin + 1);
-        String newConfig = config.substring(0, begin + 1) + javaVersion + config.substring(end);
-        writeConfigFile(newConfig, hostFile.toFile());
     }
 
     public static void writeConfigFile(String config, String folder, String fileName) {
@@ -53,12 +40,4 @@ public class Commons {
         return Paths.get("%JAVA_HOME%", "bin", "java").toString();
     }
 
-    public static String getJavaPathOS(String os) throws IOException {
-        if (os.equals("linux"))
-            return LINUX_JAVA_PATH;
-        else if (os.equals("windows"))
-            return WINDOWS_JAVA_PATH;
-        else
-            throw new IOException(String.format("Invalid operating system selected! Valid values are [%s, %s]", "linux", "windows"));
-    }
 }

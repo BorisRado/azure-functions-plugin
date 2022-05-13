@@ -44,20 +44,11 @@ public class AzfDeployMojo extends AbstractMojo {
     @Parameter(property = "initialInvoke", required = false, defaultValue = "true")
     private boolean initialInvoke;
 
-    @Parameter(property = "hostOperatingSystem",  required = false)
-    private String hostOperatingSystem;
-
     public void execute() throws MojoExecutionException {
 
         try {
-            if (hostOperatingSystem != null)
-                setJavaPathInHost(Commons.getJavaPathOS(hostOperatingSystem));
 
             zipConfigAndCode();
-
-            // restore java version
-            if (hostOperatingSystem != null)
-                setJavaPathInHost(Commons.getJavaPath());
 
             // push to azure functions
             deploy();
@@ -75,13 +66,6 @@ public class AzfDeployMojo extends AbstractMojo {
             throw new MojoExecutionException("Failed to deploy", e);
         }
 
-    }
-
-    private void setJavaPathInHost(String javaPath) throws IOException {
-        Commons.setJavaPathInHost(
-                Paths.get(project.getBuild().getDirectory(), configFolder, AzfGenerateConfigMojo.HOST_FILE),
-                javaPath
-        );
     }
 
     private void zipConfigAndCode() throws IOException {
@@ -199,7 +183,7 @@ public class AzfDeployMojo extends AbstractMojo {
         }
 
         while ((s = stdError.readLine()) != null) {
-            getLog().error(s);
+            getLog().warn(s);
         }
 
         proc.waitFor();

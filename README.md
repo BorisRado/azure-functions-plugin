@@ -58,4 +58,14 @@ mvn config-generator:deploy -DresourceGroupName=<resource-group-name> -Dfunction
 Note that the command requires that the `az` binary is installed on your local computer. 
 
 ### TO-DO
-The deployment with REST still does not work.
+List of top-priorities:
+* The deployment with REST still does not work.
+* When deploying on Windows this message often pops up:
+    ```bash
+    [WARNING] WARNING: Getting scm site credentials for zip deployment
+    [WARNING] WARNING: Starting zip deployment. This operation can take a while to complete ...
+    [WARNING] WARNING: Deployment endpoint responded with status code 202
+    ```
+    Not sure why it happens, online some people report the same issue but no solution on how to fix it, e.g. [this stackoverflow](https://stackoverflow.com/questions/60284151/azure-zip-push-deployment-for-a-function-app-doesnt-work)
+* When deploying on Linux, the log messages from kumuluz are not displayed. [Here](https://stackoverflow.com/questions/44657584/azure-function-apps-logs-not-showing) it is written that logs are fragile, but the proposed solution does not work;
+* Slow first response after several hours of inactivity;
