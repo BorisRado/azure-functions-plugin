@@ -13,6 +13,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.FileUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +40,10 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
     private boolean generateDockerfile;
 
     @Parameter(property = "javaVersion", required = false)
-    private String javaVersion; // if not set, use the one from project
+    private String javaVersion; // if not set, use the one from project; relevant only for dockerfile
+
+    @Parameter(property = "os", required = false)
+    private String os; // relevant only when exploded packaging
 
     protected static final String TEMPLATES_FOLDER = "TEMPLATES";
     protected static final String FUNCTIONS_FILE = "function.json";
@@ -68,7 +72,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
             endpoints.forEach(endpoint -> getLog().info("\t\t" + endpoint));
 
             createConfigFiles(endpoints);
-            copyJar();
+            copyCode();
 
             if (generateDockerfile)
                 generateDockerfile();
@@ -109,16 +113,30 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         Mustache m = mf.compile(Paths.get(TEMPLATES_FOLDER, baseHostConfigFile).toString());
         Map<String, String> javaPathMap = new HashMap<>();
         javaPathMap.put("javaPath", Commons.getJavaPath());
+        boolean useWindowsSeparator = Commons.isWindowsOs();
+        System.out.println(os);
+        if (os != null) {
+            if (!os.equals("windows") && !os.equals("linux"))
+                getLog().warn("Invalid os " + os + ". Valid values are `windows` and `linux`. Will keep the current os");
+            useWindowsSeparator = os.equals("windows");
+        }
+        javaPathMap.put("osSeparator", useWindowsSeparator ? ";" : ":");
         StringWriter writer = new StringWriter();
         m.execute(writer, javaPathMap).flush();
         Commons.writeConfigFile(writer.toString(), baseDirectory.toString(), HOST_FILE);
     }
 
-    private void copyJar() throws IOException {
-        java.nio.file.Path targetFile = Paths.get(targetFolder, configFolder, "handler.jar");
-        java.nio.file.Path sourceFile = Paths.get(targetFolder, project.getBuild().getFinalName() + ".jar");
-        Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+    private void copyCode() throws IOException {
+        if (jarPackaging) {
+            Path targetFile = Paths.get(targetFolder, configFolder, "handler.jar");
+            Path sourceFile = Paths.get(targetFolder, project.getBuild().getFinalName() + ".jar");
+            Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+        } else {
+            FileUtils.copyDirectoryStructure(Paths.get(targetFolder, "classes").toFile(), Paths.get(targetFolder, configFolder, "classes").toFile());
+            FileUtils.copyDirectoryStructure(Paths.get(targetFolder, "dependency").toFile(), Paths.get(targetFolder, configFolder, "dependency").toFile());
+        }
     }
+
 
     private void generateDockerfile() throws IOException {
         MustacheFactory mf = new DefaultMustacheFactory();

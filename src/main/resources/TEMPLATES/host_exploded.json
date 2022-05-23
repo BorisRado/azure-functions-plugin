@@ -11,7 +11,7 @@
   "customHandler": {
     "description": {
       "defaultExecutablePath": "{{ javaPath }}",
-      "arguments": ["-cp", "classes:dependency/*", "com.kumuluz.ee.EeApplication"]
+      "arguments": ["-cp", "classes{{ osSeparator }}dependency/*", "com.kumuluz.ee.EeApplication"]
     },
     "enableForwardingHttpRequest": true
   },

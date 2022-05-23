@@ -4,8 +4,6 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -38,6 +36,10 @@ public class Commons {
 
     public static String getJavaPath() {
         return Paths.get("%JAVA_HOME%", "bin", "java").toString();
+    }
+
+    public static boolean isWindowsOs() {
+        return System.getProperty("os.name").equalsIgnoreCase("windows");
     }
 
 }

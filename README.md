@@ -1,10 +1,10 @@
 # Azure functions plugins
-For development, you may want to update your `~/.m2/settings.xml` file by adding the `si.fri` plugin group, e.g.:
+For development, you may want to update your `~/.m2/settings.xml` file by adding the `com.kumuluz.ee` plugin group, e.g.:
 ```xml
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
 	<pluginGroups>
-		<pluginGroup>si.fri</pluginGroup>
+		<pluginGroup>com.kumuluz.ee</pluginGroup>
 	</pluginGroups>
 </settings>
 ```
@@ -14,8 +14,8 @@ For development, you may want to update your `~/.m2/settings.xml` file by adding
 ### Usage
 Run `mvn clean install` and then just add the following to the build of the project:
 ```xlm
-<plugin>
-    <groupId>si.fri</groupId>
+`<plugin>
+    <groupId>com.kumuluz.ee</groupId>
     <artifactId>config-generator-maven-plugin</artifactId>
     <version>1.0-SNAPSHOT</version>
     <executions>
@@ -25,7 +25,7 @@ Run `mvn clean install` and then just add the following to the build of the proj
             </goals>
         </execution>
     </executions>
-</plugin>
+</plugin>`
 ```
 Then:
 ```maven
@@ -69,3 +69,7 @@ List of top-priorities:
     Not sure why it happens, online some people report the same issue but no solution on how to fix it, e.g. [this stackoverflow](https://stackoverflow.com/questions/60284151/azure-zip-push-deployment-for-a-function-app-doesnt-work)
 * When deploying on Linux, the log messages from kumuluz are not displayed. [Here](https://stackoverflow.com/questions/44657584/azure-function-apps-logs-not-showing) it is written that logs are fragile, but the proposed solution does not work;
 * Slow first response after several hours of inactivity;
+
+### Notes
+* If getting the `Unable to open a connection to your app. This may be due to any network security groups or IP restriction rules that you have placed on your app. To use log streaming, please make sure you are able to access your app directly from your current network.` message when trying to connect to logs, make sure to clear the cache.
+* If deploying on linux with consumption plan, the logs are not shown in the streaming log tab. Either deploy on premium plan (then go to app service logs and configure to use file system logs) or use live metric stream, see [the docs](https://github.com/MicrosoftDocs/azure-docs/blob/main/articles/azure-functions/streaming-logs.md).

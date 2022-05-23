@@ -59,7 +59,6 @@
             <version>${classgraph.version}</version>
         </dependency>
 
-
     </dependencies>
 
     <build>
