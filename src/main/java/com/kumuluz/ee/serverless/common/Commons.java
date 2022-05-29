@@ -4,8 +4,13 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Commons {
 
@@ -40,6 +45,12 @@ public class Commons {
 
     public static boolean isWindowsOs() {
         return System.getProperty("os.name").equalsIgnoreCase("windows");
+    }
+
+    public static void chmod777 (File file) {
+        file.setReadable(true, false);
+        file.setWritable(true, false);
+        file.setExecutable(true, false);
     }
 
 }

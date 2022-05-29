@@ -114,7 +114,6 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         Map<String, String> javaPathMap = new HashMap<>();
         javaPathMap.put("javaPath", Commons.getJavaPath());
         boolean useWindowsSeparator = Commons.isWindowsOs();
-        System.out.println(os);
         if (os != null) {
             if (!os.equals("windows") && !os.equals("linux"))
                 getLog().warn("Invalid os " + os + ". Valid values are `windows` and `linux`. Will keep the current os");
@@ -163,14 +162,8 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         if (jarPackaging) {
             Path eeClsLoaderFolder = Paths.get(containerFolder.toString(), EE_CLS_LOADER_FOLDER);
             Files.createDirectories(eeClsLoaderFolder);
-            chmod777(eeClsLoaderFolder.toFile());
+            Commons.chmod777(eeClsLoaderFolder.toFile());
         }
-    }
-
-    private static void chmod777 (File file) {
-        file.setReadable(true, false);
-        file.setWritable(true, false);
-        file.setExecutable(true, false);
     }
 
 }
