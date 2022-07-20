@@ -16,6 +16,9 @@ import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
 
 import java.io.*;
+import java.net.JarURLConnection;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -23,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Mojo(name = "azf-generate-config", defaultPhase = LifecyclePhase.PACKAGE)
 public class AzfGenerateConfigMojo extends AbstractMojo {
@@ -74,8 +78,9 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
             createConfigFiles(endpoints);
             copyCode();
 
-            if (generateDockerfile)
+            if (generateDockerfile) {
                 generateDockerfile();
+            }
 
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to generate config", e);
@@ -115,8 +120,9 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         javaPathMap.put("javaPath", Commons.getJavaPath());
         boolean useWindowsSeparator = Commons.isWindowsOs();
         if (os != null) {
-            if (!os.equals("windows") && !os.equals("linux"))
+            if (!os.equals("windows") && !os.equals("linux")) {
                 getLog().warn("Invalid os " + os + ". Valid values are `windows` and `linux`. Will keep the current os");
+            }
             useWindowsSeparator = os.equals("windows");
         }
         javaPathMap.put("osSeparator", useWindowsSeparator ? ";" : ":");
@@ -147,11 +153,14 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
         Commons.writeConfigFile(writer.toString(), Paths.get(targetFolder, configFolder).toString(), DOCKERFILE);
     }
 
-    private static String getConfigTemplate(String fileName) {
+    private static String getConfigTemplate(String fileName) throws IOException {
         // reads the file `fileName` in the templates folder and returns it as a string
-        String filePath =  Paths.get(TEMPLATES_FOLDER, fileName).toString();;
-        return new Scanner(AzfGenerateConfigMojo.class.getClassLoader().getResourceAsStream(filePath), StandardCharsets.UTF_8)
-                .useDelimiter("\\A").next();
+
+        String filePath =  "/" + Paths.get(TEMPLATES_FOLDER, fileName); // can we do this more elegantly?
+        try (InputStream in = AzfGenerateConfigMojo.class.getResourceAsStream(filePath)) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
     }
 
     private void createDirectoryStructure() throws IOException {

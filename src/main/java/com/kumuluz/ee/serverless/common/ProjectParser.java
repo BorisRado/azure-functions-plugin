@@ -17,33 +17,32 @@ public class ProjectParser {
     private final static String PATH_ANNOTATION = JAX_RS_PACKAGE + "Path";
     private final static String APPLICATION_PATH_ANNOTATION = JAX_RS_PACKAGE + "ApplicationPath";
 
-    /**
-     * Scans the project and returns all the endpoints that are present in the project
-     * @return
-     */
     public static List<RestEndpoint> getEndpoints(MavenProject project) {
+        // This method scans the project and returns all the endpoints that are present in the project
+
         ClassGraph clsGraph = new ClassGraph().overrideClasspath(project.getBuild().getDirectory());
 
         // get list of all classes in project
         List<RestEndpoint> endpoints = new ArrayList<>();
         try (ScanResult result = clsGraph.enableAllInfo().acceptPackages(project.getGroupId()).scan()) {
+            String baseUrl = getApplicationBaseUrl(result);
             for (RestMethodEnum method :  RestMethodEnum.values()) {
-                addEndpointsToList(result, endpoints, method);
-                getApplicationBaseUrl(result);
+                addEndpointsToList(result, endpoints, method, baseUrl);
             }
         }
-        endpoints.sort(Comparator.comparing(o -> o.toString()));
+        endpoints.sort(Comparator.comparing(RestEndpoint::toString));
         return endpoints;
     }
 
-    private static void getApplicationBaseUrl(ScanResult result) {
+    private static String getApplicationBaseUrl(ScanResult result) {
         ClassInfoList classInfos = result.getClassesWithAnnotation(APPLICATION_PATH_ANNOTATION);
         String baseUrl = classInfos.get(0).getAnnotationInfo(APPLICATION_PATH_ANNOTATION)
                 .getParameterValues().get("value").getValue().toString();
-        RestEndpoint.setBaseUrl(baseUrl);
+        return baseUrl;
     }
 
-    private static void addEndpointsToList(ScanResult result, List<RestEndpoint> endpoints, RestMethodEnum method) {
+    private static void addEndpointsToList(ScanResult result, List<RestEndpoint> endpoints,
+                                           RestMethodEnum method, String baseAppUrl) {
         ClassInfoList classInfos = result.getClassesWithMethodAnnotation(JAX_RS_PACKAGE + method.name());
 
         classInfos.forEach(classInfo -> {
@@ -53,7 +52,13 @@ public class ProjectParser {
                 if (methodInfo.hasAnnotation(JAX_RS_PACKAGE + method.name())) {
                     String methodUrl = methodInfo.hasAnnotation(PATH_ANNOTATION) ?
                             methodInfo.getAnnotationInfo(PATH_ANNOTATION).getParameterValues().get("value").getValue().toString() : "";
-                    endpoints.add(new RestEndpoint(classUrl, methodUrl, methodInfo.getName(), method, classInfo.loadClass()));
+                    RestEndpoint restEndpoint = new RestEndpoint();
+                    restEndpoint.setRestMethodEnum(method);
+                    restEndpoint.setBaseAppUrl(baseAppUrl);
+                    restEndpoint.setClazz(classInfo.loadClass());
+                    restEndpoint.setMethodUrl(methodUrl);
+                    restEndpoint.setClassUrl(classUrl);
+                    endpoints.add(restEndpoint);
                 }
             });
         });

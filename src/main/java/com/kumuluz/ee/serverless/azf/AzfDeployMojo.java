@@ -29,15 +29,15 @@ public class AzfDeployMojo extends AbstractMojo {
     @Parameter(property = "removeZipFile", defaultValue = "true")
     private boolean removeZipFile;
 
-    private final String RESOURCE_GROUP_ENV_VAR = "RESOURCE_GROUP";
-    private final String FUNCTION_APP_ENV_VAR = "FUNCTION_APP";
-    private final String AZR_USER_ENV_VAR = "AZF_USER";
-    private final String AZF_USER_PSW_ENV_VAR = "AZF_USER_PSW";
-    private final String ZIP_FILE_NAME_ENV_VAR = "ZIP_FILE_NAME";
-    private final String CONFIG_FOLDER_ENV_VAR = "CONFIG_FOLDER";
-    private final String REMOVE_ZIP_ENV_VAR = "REMOVE_ZIP";
-    private final String INITIAL_INVOKE_ENV_VAR = "INITIAL_INVOKE";
-    private final String DEPLOY_WITH_REST_ENV_VAR = "DEPLOY_WITH_REST";
+    private static final String RESOURCE_GROUP_ENV_VAR = "RESOURCE_GROUP";
+    private static final String FUNCTION_APP_ENV_VAR = "FUNCTION_APP";
+    private static final String AZR_USER_ENV_VAR = "AZF_USER";
+    private static final String AZF_USER_PSW_ENV_VAR = "AZF_USER_PSW";
+    private static final String ZIP_FILE_NAME_ENV_VAR = "ZIP_FILE_NAME";
+    private static final String CONFIG_FOLDER_ENV_VAR = "CONFIG_FOLDER";
+    private static final String REMOVE_ZIP_ENV_VAR = "REMOVE_ZIP";
+    private static final String INITIAL_INVOKE_ENV_VAR = "INITIAL_INVOKE";
+    private static final String DEPLOY_WITH_REST_ENV_VAR = "DEPLOY_WITH_REST";
 
     private String resourceGroupName;
     private String functionAppName;
@@ -55,8 +55,9 @@ public class AzfDeployMojo extends AbstractMojo {
         try {
 
             loadConfig();
-            if(!checkConfig())
+            if(!checkConfig()) {
                 throw new MojoExecutionException("Failed to deploy - invalid configuration");
+            }
 
             zipConfigAndCode();
 
@@ -117,75 +118,36 @@ public class AzfDeployMojo extends AbstractMojo {
     }
 
     private String getEnvString(String key, Properties prop, String defaultValue) {
-        if (System.getenv(key) != null || prop.getProperty(key) != null)
+        if (System.getenv(key) != null || prop.getProperty(key) != null) {
             return prop.getProperty(key) != null ? prop.getProperty(key) : System.getenv(key);
-        else
+        } else {
             return defaultValue;
+        }
     }
 
     private boolean getEnvBool(String key, Properties prop, boolean defaultValue) {
-        if (System.getenv(key) != null || prop.getProperty(key) != null)
+        if (System.getenv(key) != null || prop.getProperty(key) != null) {
             return prop.getProperty(key) != null ? Boolean.valueOf(prop.getProperty(key)) : Boolean.valueOf(System.getenv(key));
-        else
+        } else {
             return defaultValue;
+        }
     }
 
     private void zipConfigAndCode() throws IOException {
         getLog().info("Zipping code and configuration to " + zipFileName);
         Path folder = Paths.get(project.getBuild().getDirectory(), configFolder);
-        FileOutputStream fos = new FileOutputStream(zipFileName);
-        ZipOutputStream zipOut = new ZipOutputStream(fos);
-        Files.walk(folder, Integer.MAX_VALUE).forEach(ExceptionHandling.throwingConsumerWrapper(file -> {
+        try (FileOutputStream fos = new FileOutputStream(zipFileName);
+             ZipOutputStream zipOut = new ZipOutputStream(fos)) {
 
-            if (file.toString().equals(folder.toString()) || file.toString().contains("Dockerfile"))
-                return;
-
-            String fileName = getRelativePath(file, folder);
-            if (file.toFile().isDirectory()) {
-                zipOut.putNextEntry(new ZipEntry(fileName + "/"));
-                zipOut.closeEntry();
-            } else {
-                FileInputStream fis = new FileInputStream(file.toString());
-                ZipEntry zipEntry = new ZipEntry(fileName);
-                zipOut.putNextEntry(zipEntry);
-                byte[] bytes = new byte[1024];
-                int length;
-                while ((length = fis.read(bytes)) >= 0) {
-                    zipOut.write(bytes, 0, length);
-                }
-                fis.close();
-            }
-        }));
-        Commons.chmod777(Paths.get(project.getBasedir().getPath(), zipFileName).toFile());
-
-        zipOut.close();
-        fos.close();
+            Files.walk(folder, Integer.MAX_VALUE).forEach(ExceptionHandling.throwingConsumerWrapper(file ->
+                    Commons.zipSingleFile(file, folder, zipOut)
+            ));
+            Commons.chmod777(Paths.get(project.getBasedir().getPath(), zipFileName).toFile());
+        }
     }
 
-    private static String getRelativePath(Path fileName, Path baseFolder) {
-        return fileName.toString()
-                .replaceAll(baseFolder.toString(), "")
-                .substring(1);
-    }
-
-    private void deploy() throws IOException, InterruptedException {
-        getLog().info("Deploying app...");
-
-        if (deployWithRest)
-            deployWithCurl();
-        else
-            deployWithAz();
-    }
-
-    private void deployWithAz() throws IOException, InterruptedException {
-        getLog().info("Deploying with `az`");
-        String deployString  = String.format("az functionapp deployment source config-zip -g %s -n %s --src %s",
-                resourceGroupName, functionAppName, zipFileName);
-        runCommandInShell(deployString);
-    }
-
-    private void deployWithCurl() throws IOException {
-        getLog().info("Deploying with rest methods");
+    private void deploy() throws IOException {
+        getLog().info("Deploying with REST methods");
 
         String encodedCredentials = Base64.getEncoder().encodeToString(
                 String.format("%s:%s", azfUser, azfUserPassword).getBytes()
@@ -215,35 +177,6 @@ public class AzfDeployMojo extends AbstractMojo {
 
     }
 
-    private void runCommandInShell(String command) throws IOException, InterruptedException {
-        getLog().info(String.format("Executing command `%s`", command));
-        Process proc = Runtime.getRuntime().exec(command);
-
-        BufferedReader stdInput = new BufferedReader(new
-                InputStreamReader(proc.getInputStream()));
-
-        BufferedReader stdError = new BufferedReader(new
-                InputStreamReader(proc.getErrorStream()));
-
-        // Read the output from the command
-        String s;
-        while ((s = stdInput.readLine()) != null) {
-            getLog().info(s);
-        }
-
-        while ((s = stdError.readLine()) != null) {
-            getLog().warn(s);
-        }
-
-        proc.waitFor();
-        int exitStatus = proc.exitValue();
-        if (exitStatus != 0) {
-            getLog().error("Command exited with exit status: " + exitStatus);
-            throw new IOException();
-        } else {
-            getLog().info("Command completed successfully");
-        }
-    }
 
     private void testCallAzf() throws IOException, InterruptedException {
         TimeUnit.SECONDS.sleep(10); // seems that calling too soon the API worsens the startup time

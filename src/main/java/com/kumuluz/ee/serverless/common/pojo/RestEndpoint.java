@@ -4,59 +4,63 @@ import com.kumuluz.ee.serverless.common.enums.RestMethodEnum;
 
 public class RestEndpoint {
 
-    private String classPath;
-    private String methodPath;
+    private String classUrl;
+    private String methodUrl;
+    private String baseAppUrl;
     private String methodName;
     private RestMethodEnum restMethodEnum;
-    private static String baseUrl;
     private Class clazz;
 
-    public RestEndpoint(String classPath, String methodPath, String methodName, RestMethodEnum restMethodEnum, Class clazz) {
-        this.classPath = classPath;
-        this.methodPath = methodPath;
-        this.methodName = methodName;
-        this.restMethodEnum = restMethodEnum;
-        this.clazz = clazz;
+    public RestEndpoint() {
+        super();
     }
 
-    public static String getBaseUrl() {
-        return baseUrl;
+    public String getClassUrl() {
+        return classUrl;
     }
 
-    public static void setBaseUrl(String baseUrl) {
-        RestEndpoint.baseUrl = baseUrl;
+    public void setClassUrl(String classUrl) {
+        this.classUrl = classUrl;
     }
 
-    public String getClassPath() {
-        return classPath;
+    public String getMethodUrl() {
+        return methodUrl;
     }
 
-    public void setClassPath(String classPath) {
-        this.classPath = classPath;
+    public void setMethodUrl(String methodUrl) {
+        this.methodUrl = methodUrl;
     }
 
-    public String getMethodPath() {
-        return methodPath;
+    public String getBaseAppUrl() {
+        return baseAppUrl;
     }
 
-    public void setMethodPath(String methodPath) {
-        this.methodPath = methodPath;
+    public void setBaseAppUrl(String baseAppUrl) {
+        this.baseAppUrl = baseAppUrl;
     }
 
-    public String getMathodName() {
+    public String getMethodName() {
         return methodName;
     }
 
-    public void setMathodName(String mathodName) {
-        this.methodName = mathodName;
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
     }
 
-    public RestMethodEnum getRestMethod() {
+    public RestMethodEnum getRestMethodEnum() {
         return restMethodEnum;
     }
 
-    public void setRestMethod(RestMethodEnum restMethodEnum) {
+    public void setRestMethodEnum(RestMethodEnum restMethodEnum) {
         this.restMethodEnum = restMethodEnum;
+    }
+
+    public Class getClazz() {
+        return clazz;
+    }
+
+    public void setClazz(Class clazz) {
+        this.clazz = clazz;
     }
 
     @Override
@@ -65,11 +69,11 @@ public class RestEndpoint {
     }
 
     public String getFolderName() {
-        return this.clazz.getSimpleName() + "_" + restMethodEnum.name() + "_" + methodName;
+        return this.clazz.getSimpleName() + "_" + restMethodEnum.name() + "_" + this.methodName;
     }
 
     public String getCompleteURL() {
-        String url = String.format("%s/%s/%s", baseUrl, this.classPath, this.methodPath);
+        String url = String.format("%s/%s/%s", this.baseAppUrl, this.classUrl, this.methodUrl);
         while (url.charAt(0) == '/')
             url = url.substring(1);
         url = url.replace("//", "/");
