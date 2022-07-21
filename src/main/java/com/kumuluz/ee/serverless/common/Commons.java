@@ -18,8 +18,9 @@ public class Commons {
 
     public static String getJavaVersion(MavenProject project) {
         String javaVersion = (String) project.getProperties().get("maven.compiler.target");
-        if (javaVersion.equals("1.8"))
+        if (javaVersion.equals("1.8")) {
             javaVersion = "8";
+        }
         return javaVersion;
     }
 
@@ -52,8 +53,9 @@ public class Commons {
     }
 
     public static void zipSingleFile(Path file, Path folder, ZipOutputStream zipOut) throws IOException {
-        if (file.toString().equals(folder.toString()) || file.toString().contains("Dockerfile"))
+        if (file.toString().equals(folder.toString()) || file.toString().contains("Dockerfile")) {
             return;
+        }
 
         String fileName = folder.relativize(file).toString();
         if (file.toFile().isDirectory()) {
@@ -67,7 +69,7 @@ public class Commons {
                 byte[] bytes = new byte[1_024];
                 int length;
                 while ((length = fis.read(bytes)) >= 0) {
-                    zipOut.write(bytes, 1, length);
+                    zipOut.write(bytes, 0, length);
                 }
             }
         }

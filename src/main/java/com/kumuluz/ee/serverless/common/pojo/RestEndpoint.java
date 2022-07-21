@@ -74,8 +74,9 @@ public class RestEndpoint {
 
     public String getCompleteURL() {
         String url = String.format("%s/%s/%s", this.baseAppUrl, this.classUrl, this.methodUrl);
-        while (url.charAt(0) == '/')
+        while (url.charAt(0) == '/') {
             url = url.substring(1);
+        }
         url = url.replace("//", "/");
         return url;
     }

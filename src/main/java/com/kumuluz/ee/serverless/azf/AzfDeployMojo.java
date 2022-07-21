@@ -134,13 +134,15 @@ public class AzfDeployMojo extends AbstractMojo {
     }
 
     private void zipConfigAndCode() throws IOException {
-        getLog().info("Zipping code and configuration to " + zipFileName);
+        String zipFilePath = Paths.get(project.getBuild().getDirectory(), configFolder, zipFileName).toString();
+        getLog().info("Zipping code and configuration to " + zipFilePath);
         Path folder = Paths.get(project.getBuild().getDirectory(), configFolder);
-        try (FileOutputStream fos = new FileOutputStream(zipFileName);
-             ZipOutputStream zipOut = new ZipOutputStream(fos)) {
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
+                ZipOutputStream zipOut = new ZipOutputStream(fos)) {
 
-            Files.walk(folder, Integer.MAX_VALUE).forEach(ExceptionHandling.throwingConsumerWrapper(file ->
-                    Commons.zipSingleFile(file, folder, zipOut)
+            Files.walk(folder, Integer.MAX_VALUE).filter(file -> !file.getFileName().toString().equals(zipFileName))
+                    .forEach(ExceptionHandling.throwingConsumerWrapper(file ->
+                        Commons.zipSingleFile(file, folder, zipOut)
             ));
             Commons.chmod777(Paths.get(project.getBasedir().getPath(), zipFileName).toFile());
         }
@@ -154,13 +156,13 @@ public class AzfDeployMojo extends AbstractMojo {
         );
 
         URL url = new URL(String.format("https://%s.scm.azurewebsites.net/api/zipdeploy", functionAppName));
-        HttpURLConnection http = (HttpURLConnection)url.openConnection();
+        HttpURLConnection http = (HttpURLConnection) url.openConnection();
         http.setRequestMethod("POST");
         http.setDoOutput(true);
         http.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         http.setRequestProperty("Authorization", String.format("Basic %s", encodedCredentials));
 
-        File binaryFile = new File(zipFileName);
+        File binaryFile = Paths.get(project.getBuild().getOutputDirectory(), configFolder, zipFileName).toFile();
         OutputStream output = http.getOutputStream();
         Files.copy(binaryFile.toPath(), output);
         output.flush();
