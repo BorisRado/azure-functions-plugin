@@ -2,6 +2,11 @@ package com.kumuluz.ee.serverless.azf.error_handling;
 
 import java.util.function.Consumer;
 
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
+
 public class ExceptionHandling {
 
     public static <T> Consumer<T> throwingConsumerWrapper(

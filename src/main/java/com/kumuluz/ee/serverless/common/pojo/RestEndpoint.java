@@ -2,6 +2,11 @@ package com.kumuluz.ee.serverless.common.pojo;
 
 import com.kumuluz.ee.serverless.common.enums.RestMethodEnum;
 
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
+
 public class RestEndpoint {
 
     private String classUrl;

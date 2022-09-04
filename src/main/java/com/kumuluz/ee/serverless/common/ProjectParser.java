@@ -11,6 +11,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
+
 public class ProjectParser {
 
     private final static String JAX_RS_PACKAGE = "javax.ws.rs.";

@@ -16,9 +16,6 @@ import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.FileUtils;
 
 import java.io.*;
-import java.net.JarURLConnection;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -26,7 +23,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.stream.Collectors;
+
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
 
 @Mojo(name = "azf-generate-config", defaultPhase = LifecyclePhase.PACKAGE)
 public class AzfGenerateConfigMojo extends AbstractMojo {

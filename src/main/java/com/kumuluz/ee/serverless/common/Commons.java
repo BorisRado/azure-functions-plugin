@@ -12,6 +12,11 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
+
 public class Commons {
 
     private static Logger log = Logger.getLogger(Commons.class.getName());

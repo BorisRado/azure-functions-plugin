@@ -17,8 +17,12 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+/**
+ * @author Boris Radovic
+ * @since 1.0.0
+ */
 
 @Mojo(name = "azf-deploy")
 public class AzfDeployMojo extends AbstractMojo {
