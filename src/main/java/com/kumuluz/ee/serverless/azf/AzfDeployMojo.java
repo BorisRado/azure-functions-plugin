@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -142,14 +143,15 @@ public class AzfDeployMojo extends AbstractMojo {
         getLog().info("Zipping code and configuration to " + zipFilePath);
         Path folder = Paths.get(project.getBuild().getDirectory(), configFolder);
         try (FileOutputStream fos = new FileOutputStream(zipFilePath);
-                ZipOutputStream zipOut = new ZipOutputStream(fos)) {
+                ZipOutputStream zipOut = new ZipOutputStream(fos);
+                Stream<Path> walk = Files.walk(folder, Integer.MAX_VALUE)) {
 
-            Files.walk(folder, Integer.MAX_VALUE).filter(file -> !file.getFileName().toString().equals(zipFileName))
+            walk.filter(file -> !file.getFileName().toString().equals(zipFileName))
                     .forEach(ExceptionHandling.throwingConsumerWrapper(file ->
                         Commons.zipSingleFile(file, folder, zipOut)
             ));
-            Commons.chmod777(Paths.get(project.getBasedir().getPath(), zipFileName).toFile());
         }
+        Commons.chmod777(Paths.get(project.getBasedir().getPath(), zipFileName).toFile());
     }
 
     private void deploy() throws IOException {

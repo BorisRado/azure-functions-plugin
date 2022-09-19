@@ -59,6 +59,7 @@ public class ProjectParser {
                             methodInfo.getAnnotationInfo(PATH_ANNOTATION).getParameterValues().get("value").getValue().toString() : "";
                     RestEndpoint restEndpoint = new RestEndpoint();
                     restEndpoint.setRestMethodEnum(method);
+                    restEndpoint.setMethodName(methodInfo.getName());
                     restEndpoint.setBaseAppUrl(baseAppUrl);
                     restEndpoint.setClazz(classInfo.loadClass());
                     restEndpoint.setMethodUrl(methodUrl);

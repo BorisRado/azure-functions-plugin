@@ -156,7 +156,7 @@ public class AzfGenerateConfigMojo extends AbstractMojo {
 
     private static String getConfigTemplate(String fileName) throws IOException {
         // reads the file `fileName` in the templates folder and returns it as a string
-        String filePath = "/" + Paths.get(TEMPLATES_FOLDER, fileName);
+        String filePath = Paths.get("/", TEMPLATES_FOLDER, fileName).toString();
         try (InputStream in = AzfGenerateConfigMojo.class.getResourceAsStream(filePath)) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }

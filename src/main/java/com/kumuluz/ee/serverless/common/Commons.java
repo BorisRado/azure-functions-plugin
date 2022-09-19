@@ -1,6 +1,7 @@
 package com.kumuluz.ee.serverless.common;
 
 import org.apache.maven.model.Plugin;
+import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 
 import java.io.*;
@@ -8,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -32,7 +34,20 @@ public class Commons {
     @SuppressWarnings("unchecked")
     public static boolean getIsJarPackaging(MavenProject project) {
         List<Plugin> buildPlugins = (List<Plugin>) project.getBuildPlugins();
-        return buildPlugins.stream().anyMatch(plugin -> plugin.getArtifactId().equals("kumuluzee-maven-plugin"));
+        Optional<Plugin> plugin = buildPlugins.stream()
+                .filter(plg -> plg.getArtifactId().equals("kumuluzee-maven-plugin"))
+                .findFirst();
+        if (plugin.isPresent()) {
+            List<PluginExecution> pluginExecutions = plugin.get().getExecutions();
+            assert pluginExecutions.size() == 1;
+
+            List<String> goals = pluginExecutions.get(0).getGoals();
+            assert goals.size() == 1;
+
+            return goals.get(0).equals("repackage");
+        } else {
+            return false;
+        }
     }
 
     public static void writeConfigFile(String config, String folder, String fileName) throws IOException {
