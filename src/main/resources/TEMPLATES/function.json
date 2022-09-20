@@ -5,7 +5,7 @@
       "direction" : "in",
       "name" : "req",
       "route" : "{{ getCompleteURL }}",
-      "methods" : [ "{{ getRestMethod }}" ],
+      "methods" : [ "{{ getRestMethodEnum }}" ],
       "authLevel" : "ANONYMOUS"
     }, {
       "type" : "http",
