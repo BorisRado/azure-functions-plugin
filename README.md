@@ -9,42 +9,43 @@ For development, you may want to update your `~/.m2/settings.xml` file by adding
 </settings>
 ```
 
-## Plugin for generating azure functions configuration
+## Generating azure functions configuration
 
 ### Usage
-Run `mvn clean install` and then just add the following to the build of the project:
+Run `mvn clean install` to install locally the Kumuluz serverless framework, and then add the following plugin to the `pom.xml` of the project you want to deploy to the serverless environment:
 ```xlm
-`<plugin>
+<plugin>
     <groupId>com.kumuluz.ee</groupId>
-    <artifactId>config-generator-maven-plugin</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>serverless-maven-plugin</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <executions>
         <execution>
             <goals>
-                <goal>generate-config-files</goal>
+                <goal>azf-generate-config</goal>
             </goals>
         </execution>
     </executions>
-</plugin>`
+</plugin>
 ```
 Then:
 ```maven
 mvn clean package
 ```
-This will generate a folder (`azure-config-folder`) inside the `target` folder of the build. Navigate to the folder (`cd target/azure-config-folder`) and run `func start`.
+This will generate a folder (`azf-config`) inside the `target` folder. Navigate to the folder (`cd target/azf-config`) and run `func start`.
 
-You can change the name of the target folder by specifying `-DconfigFolder=<folder-name>`.
+You can change the name of the folder that will contain the required files by specifying `-DconfigFolder=<folder-name>`.
 
 ### So-far, to-do
 Still not support [these use cases](https://stackoverflow.com/questions/25755130/nested-resources-in-jersey-jax-rs-how-to-implement-restangular-example/25775371#25775371). See if you can use the [jersley implementation](https://github.com/eclipse-ee4j/jersey)
-## Plugin for deployment on azure functions
+
+## Deployment on Azure functions
 
 ### Manual deployment
 Documentation can be found [here](https://docs.microsoft.com/en-us/azure/azure-functions/deployment-zip-push).
 
-Under the hood, we use the `.zip` deployment method to push the code to the azure functions. For manual deployment, follow the following steps (tested on Linux for deploying to an azure function with the linux base image):
+Under the hood, we use the `.zip` deployment method to push the code to the Azure functions. For manual deployment, follow the following steps (tested on Linux for deploying to an Azure function with the linux base image):
 1. Build the project with `mvn clean package`;
-2. Create an azure function app on the azure portal. Use the Linux Operating system and the java runtime stack;
+2. Create an Azure function app on the Azure portal. Use the Linux Operating system and the java runtime stack;
 3. Navigate to the folder containing all the configuration and code, which was build by the first plugin, `cd target/azure-config-folder/`;
 4. Update the `host.json` by changing the `defaultExecutablePath` to `%JAVA_HOME%/bin/java`;
 5. Zip all the contents of the folder, `zip -r app.zip .`;
@@ -55,11 +56,11 @@ Steps 3-6 can be automated with the plugin, by just running the command:
 ```bash
 mvn config-generator:deploy -DresourceGroupName=<resource-group-name> -DfunctionAppName=<function-app-name>
 ```
-Note that the command requires that the `az` binary is installed on your local computer. 
+This command does not use the `az` binary; instead, it packages all the files into a zip file and sends the zip file by means of REST methods to the Azure cloud. Note, that this deployment method fails when using Linux as the base image for the Function app, so we recommend using Windows as the base image until we manage to sort out this problem.
 
 ### TO-DO
 List of top-priorities:
-* The deployment with REST still does not work.
+* correct the zip deployment for Linux. Currently, it does not work if using the consumption serverless plan, but it works when using other, premium tiers;
 * When deploying on Windows this message often pops up:
     ```bash
     [WARNING] WARNING: Getting scm site credentials for zip deployment
@@ -67,7 +68,6 @@ List of top-priorities:
     [WARNING] WARNING: Deployment endpoint responded with status code 202
     ```
     Not sure why it happens, online some people report the same issue but no solution on how to fix it, e.g. [this stackoverflow](https://stackoverflow.com/questions/60284151/azure-zip-push-deployment-for-a-function-app-doesnt-work)
-* When deploying on Linux, the log messages from kumuluz are not displayed. [Here](https://stackoverflow.com/questions/44657584/azure-function-apps-logs-not-showing) it is written that logs are fragile, but the proposed solution does not work;
 * Slow first response after several hours of inactivity;
 
 ### Notes
