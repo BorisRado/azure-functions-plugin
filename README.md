@@ -9,7 +9,7 @@ For development, you may want to update your `~/.m2/settings.xml` file by adding
 </settings>
 ```
 
-## Generating azure functions configuration
+## Generating Azure functions configuration
 
 ### Usage
 Run `mvn clean install` to install locally the Kumuluz serverless framework, and then add the following plugin to the `pom.xml` of the project you want to deploy to the serverless environment:
@@ -35,7 +35,7 @@ This will generate a folder (`azf-config`) inside the `target` folder. Navigate 
 
 You can change the name of the folder that will contain the required files by specifying `-DconfigFolder=<folder-name>`.
 
-### So-far, to-do
+### TO-DO
 Still not support [these use cases](https://stackoverflow.com/questions/25755130/nested-resources-in-jersey-jax-rs-how-to-implement-restangular-example/25775371#25775371). See if you can use the [jersley implementation](https://github.com/eclipse-ee4j/jersey)
 
 ## Deployment on Azure functions
@@ -49,7 +49,7 @@ Under the hood, we use the `.zip` deployment method to push the code to the Azur
 3. Navigate to the folder containing all the configuration and code, which was build by the first plugin, `cd target/azure-config-folder/`;
 4. Update the `host.json` by changing the `defaultExecutablePath` to `%JAVA_HOME%/bin/java`;
 5. Zip all the contents of the folder, `zip -r app.zip .`;
-6. Push the zip to azure functions, `az functionapp deployment source config-zip -g <resource-group-name> -n <function-app-name> --src $(readlink -f app.zip)` - change the resource group name and function name with the values you set during step 2.
+6. Push the zip to Azure functions, `az functionapp deployment source config-zip -g <resource-group-name> -n <function-app-name> --src $(readlink -f app.zip)` - change the resource group name and function name with the values you set during step 2.
 
 ### Automatic deployment
 Steps 3-6 can be automated with the plugin, by just running the command:
