@@ -70,8 +70,9 @@ public class AzfDeployMojo extends AbstractMojo {
             deploy();
 
             if (removeZipFile) {
-                getLog().info("Deleting " + zipFileName);
-                Files.delete(Paths.get(zipFileName));
+                String zipFilePath = Paths.get(project.getBuild().getDirectory(), configFolder, zipFileName).toString();
+                getLog().info("Deleting " + zipFilePath);
+                Files.delete(Paths.get(zipFilePath));
             }
 
             if (initialInvoke) {
@@ -167,8 +168,8 @@ public class AzfDeployMojo extends AbstractMojo {
         http.setDoOutput(true);
         http.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         http.setRequestProperty("Authorization", String.format("Basic %s", encodedCredentials));
-
-        File binaryFile = Paths.get(project.getBuild().getOutputDirectory(), configFolder, zipFileName).toFile();
+		
+        File binaryFile = Paths.get(project.getBuild().getDirectory(), configFolder, zipFileName).toFile();
         OutputStream output = http.getOutputStream();
         Files.copy(binaryFile.toPath(), output);
         output.flush();
